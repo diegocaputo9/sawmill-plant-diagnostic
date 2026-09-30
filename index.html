@@ -28,7 +28,7 @@
   --tint:#202936; --accent:#F07A2A; --accent-text:#FF9E5E; --accent-ink:#12171E; --good:#5CC28F; --warn:#FFAE6B; --danger:#FF8A7A;
 }
 html{height:100%; scroll-padding-top:calc(env(safe-area-inset-top,0px) + 108px);}
-*,*::before,*::after{box-sizing:inherit}
+*,*::before,*::after{box-sizing:border-box}
 body{margin:0; background:var(--page); color:var(--ink); font:16px/1.5 var(--sans); font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased}
 h1,h2,h3{margin:0; font-weight:650; line-height:1.15; color:var(--ink)}
 button,input,select,textarea{font:inherit; color:inherit}
@@ -135,20 +135,33 @@ td.hint{padding:18px 0}
 /* process map: boxes in flow order */
 .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:16px 0; padding:4px 2px 18px}
 .unit{display:flex; align-items:stretch}
-.step{flex:0 0 224px; background:var(--field); border:1px solid var(--rule-strong); border-radius:2px; padding:12px; display:flex; flex-direction:column; gap:10px}
+.step{min-width:0; flex:0 0 224px; background:var(--field); border:1px solid var(--rule-strong); border-radius:2px; padding:12px; display:flex; flex-direction:column; gap:10px}
 .step.flag{box-shadow:inset 0 4px 0 var(--accent); padding-top:14px}
 .step-top{display:grid; grid-template-columns:1.6rem minmax(0,1fr); gap:8px; align-items:center}
 .step-n{font-size:.85rem; font-weight:650; color:var(--muted)}
 .step-top input{font-weight:600}
 .mini2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:6px}
 .mini2 .wide{grid-column:1/-1}
+.maptabs{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:14px}
+.mtab{border:1px solid var(--rule); background:var(--field); color:var(--muted); border-radius:2px; padding:8px 14px; min-height:40px; cursor:pointer; font-weight:500; font-size:.92rem; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.mtab:hover{color:var(--ink); border-color:var(--ink)}
+.mtab[aria-selected="true"]{background:var(--ink); border-color:var(--ink); color:var(--page); font-weight:650}
+.mtab.plus{font-size:1.2rem; line-height:1; padding:6px 14px}
+.addmenu{display:flex; flex-wrap:wrap; gap:8px; align-items:center; border:1px solid var(--rule); background:var(--field); padding:10px 12px; margin:-4px 0 14px}
+.addmenu .lbl{font-size:.85rem; color:var(--muted); margin-right:4px}
+.mapbar{display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; margin-bottom:18px}
+.mapbar label.f{flex:0 1 340px}
+.pic{display:block; max-width:100%; max-height:380px; border:1px solid var(--rule); background:#fff; cursor:zoom-in; margin-top:12px}
+.pic.zoom{max-height:none; cursor:zoom-out}
 .addbox{flex:0 0 150px; border:1.5px dashed var(--muted); background:none; border-radius:2px; color:var(--ink); font-weight:600; font-size:.93rem; cursor:pointer; min-height:72px}
 .addbox:hover{border-color:var(--ink); background:var(--field)}
 .chartwrap{overflow-x:auto; padding:8px 0}
 .total{margin:14px 0 0; font-size:1rem}
 .total b{font-weight:700}
 .chartwrap svg{display:block}
-.step label.f{font-size:.72rem; gap:4px}
+.step label.f{font-size:.72rem; gap:4px; min-width:0}
+.step input,.step textarea{min-width:0; max-width:100%}
+.step details{min-width:0}
 .step input[type=number],.step input[type=text]{padding:6px 8px; min-height:38px}
 .step textarea{min-height:52px}
 .step details summary{font-size:.85rem; font-weight:500; color:var(--muted)}
@@ -265,8 +278,14 @@ details[open] summary{margin-bottom:4px}
   <section class="panel" id="p-measure" role="tabpanel">
     <div class="lede"><h2>Process map</h2><p class="intro">Name each main step in the order material flows. Open More details to add cycle time, WIP before, changeover, or notes. Everything except the name is optional. The flow chart at the bottom updates as you go.</p></div>
     <div class="work">
+    <div class="maptabs" id="mapTabs" role="tablist" aria-label="Product or service process maps"></div>
+    <div class="addmenu hidden" id="addMenu"></div>
+    <div class="mapbar"><label class="f">Name of this product or service<input type="text" id="mapName"></label><button type="button" class="btn danger hidden" id="delMap" data-act="delMap">Delete this map</button></div>
     <div class="block"><div class="flow" id="flow"></div>
     <div class="actions"><button class="btn" data-act="addProc">Add step</button></div></div>
+    <div class="block"><h3>Picture of a drawn process map</h3><p class="hint">Add a photo or image of a map drawn on paper or in another app. It is kept with this process map.</p>
+      <div class="actions"><button type="button" class="btn alt" id="addPicBtn" data-act="addPic">Add picture</button><button type="button" class="btn danger hidden" id="rmPic" data-act="rmPic">Remove picture</button></div>
+      <input type="file" id="picFile" accept="image/*" class="hidden"><div id="picBox"></div></div>
     <div class="block"><h3>Flow chart</h3><p class="hint">Built from the steps above, in order. An orange outline marks a step with a much longer cycle time than its neighbor, or the largest queue in front of the slowest step.</p><div class="chartwrap" id="chart"></div><p class="total" id="totalTime"></p></div>
     </div>
   </section>
@@ -383,17 +402,23 @@ const VISIT_FIELDS = [
 
 /* ---------- state ---------- */
 const LS_KEY = "sawmill-diagnostic-v1";
-const blank = () => ({visit:{}, obs:{}, procs:[], interviews:[], photos:[], starred:[], oppNotes:{}, updatedAt:0});
+const uid = () => Math.random().toString(36).slice(2,9);
+const blank = () => ({visit:{}, obs:{}, maps:[{id:uid(), name:"Product/service 1", procs:[], img:""}], activeMap:0, interviews:[], photos:[], starred:[], oppNotes:{}, updatedAt:0});
 let state = blank();
 function clean(d){
   const st = Object.assign(blank(), d);
   Object.keys(st.obs).forEach(k=>{ const o = st.obs[k]; if(CAT[k] && o) o.signals = (o.signals||[]).filter(x=>SIG[x] && SIG[x].cat===k); });
   [st.interviews, st.photos].forEach(l=>l.forEach(r=>{ if(r.cat && !CAT[r.cat]) r.cat = ""; }));
+  if(!Array.isArray(st.maps) || !st.maps.length) st.maps = [{id:uid(), name:"Product/service 1", procs:Array.isArray(d.procs)?d.procs:[], img:""}];
+  delete st.procs;
+  st.maps.forEach((m,i)=>{ m.procs = m.procs||[]; m.name = m.name||`Product/service ${i+1}`; m.img = m.img||""; });
+  if(!(st.activeMap>=0 && st.activeMap<st.maps.length)) st.activeMap = 0;
   return st;
 }
+const curMap = () => state.maps[state.activeMap];
+const PR = () => curMap().procs;
 
 
-const uid = () => Math.random().toString(36).slice(2,9);
 const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num = v => (v===""||v==null||isNaN(+v)) ? null : +v;
 const obsOf = id => state.obs[id] || (state.obs[id] = {status:"", signals:[], location:"", desc:"", freq:"", impact:"", src:{seen:true,people:false,data:false}, photo:"", follow:false, otherOn:false, otherText:""});
@@ -404,7 +429,9 @@ let dbDoc = null, saveTimer = null, saving = Promise.resolve();
 const statusEl = document.getElementById("saveStatus");
 function persist(){
   state.updatedAt = Date.now();
-  try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
+  let stored = true;
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){ stored = false; }
+  if(!dbDoc) statusEl.textContent = stored ? "Saved on this device" : "Could not save on this device (storage full). Export your data.";
   if(dbDoc){
     statusEl.textContent = "Saving...";
     clearTimeout(saveTimer);
@@ -563,13 +590,68 @@ function stepHTML(p,i,n){
   </div>` + (i<n-1 ? `<div class="link">${ARROW}<button type="button" class="ins" data-ins="${i}" aria-label="Insert a step after step ${i+1}" title="Insert a step here">+</button></div>`
     : `<div class="link">${ARROW}</div><button type="button" class="addbox" data-act="addProc">+ Add step</button>`) + `</div>`;
 }
+function renderMapUI(){
+  document.getElementById("mapTabs").innerHTML = state.maps.map((m,i)=>`<button type="button" class="mtab" role="tab" data-map="${i}" aria-selected="${i===state.activeMap}" title="${esc(m.name)}">${esc(m.name)}</button>`).join("") + `<button type="button" class="mtab plus" data-act="toggleAddMenu" aria-label="Add another process map" title="Add another process map">+</button>`;
+  document.getElementById("mapName").value = curMap().name;
+  document.getElementById("delMap").classList.toggle("hidden", state.maps.length<2);
+  renderPic();
+}
+function renderPic(){
+  const m = curMap();
+  document.getElementById("picBox").innerHTML = m.img ? `<img class="pic" src="${m.img}" alt="Picture of the process map for ${esc(m.name)}" title="Click to enlarge">` : "";
+  document.getElementById("addPicBtn").textContent = m.img ? "Replace picture" : "Add picture";
+  document.getElementById("rmPic").classList.toggle("hidden", !m.img);
+}
+function loadImage(file){
+  return new Promise((res,rej)=>{
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = ()=>{ const sc = Math.min(1, 1600/Math.max(im.width,im.height)), c = document.createElement("canvas");
+      c.width = Math.round(im.width*sc); c.height = Math.round(im.height*sc);
+      const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0,0,c.width,c.height); x.drawImage(im,0,0,c.width,c.height);
+      URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg",0.8)); };
+    im.onerror = ()=>{ URL.revokeObjectURL(url); rej(new Error("bad image")); };
+    im.src = url;
+  });
+}
+function newMap(kind){
+  const n = state.maps.length+1, src = kind==="blank" ? null : state.maps[+kind];
+  state.maps.push(src ? {id:uid(), name:`${src.name} (copy)`, procs:src.procs.map(p=>({...p,id:uid()})), img:""} : {id:uid(), name:`Product/service ${n}`, procs:[], img:""});
+  state.activeMap = state.maps.length-1;
+  document.getElementById("addMenu").classList.add("hidden");
+  persist(); renderProcs(); const nm = document.getElementById("mapName"); nm.focus(); nm.select();
+}
+const measureEl = document.getElementById("p-measure");
+measureEl.addEventListener("click", e=>{
+  const tab = e.target.closest("[data-map]");
+  if(tab){ state.activeMap = +tab.dataset.map; document.getElementById("addMenu").classList.add("hidden"); persist(); renderProcs(); return; }
+  const nmk = e.target.closest("[data-newmap]");
+  if(nmk){ newMap(nmk.dataset.newmap); return; }
+  if(e.target.closest("[data-act=toggleAddMenu]")){
+    const menu = document.getElementById("addMenu");
+    menu.innerHTML = `<span class="lbl">Start the new map from:</span><button type="button" class="btn alt" data-newmap="blank">A blank map</button>` + state.maps.map((m,i)=>`<button type="button" class="btn alt" data-newmap="${i}">Copy of ${esc(m.name)}</button>`).join("");
+    menu.classList.toggle("hidden"); return;
+  }
+  if(e.target.matches(".pic")) e.target.classList.toggle("zoom");
+});
+document.getElementById("mapName").addEventListener("input", e=>{
+  curMap().name = e.target.value;
+  const t = document.querySelector(`#mapTabs [data-map="${state.activeMap}"]`); if(t){ t.textContent = e.target.value || `Product/service ${state.activeMap+1}`; t.title = t.textContent; }
+  persist();
+});
+document.getElementById("mapName").addEventListener("change", e=>{ if(!e.target.value.trim()){ curMap().name = `Product/service ${state.activeMap+1}`; renderMapUI(); persist(); } });
+document.getElementById("picFile").addEventListener("change", e=>{
+  const f = e.target.files[0]; if(!f) return;
+  loadImage(f).then(d=>{ curMap().img = d; persist(); renderPic(); toast("Picture added"); })
+    .catch(()=>toast("That file could not be read as an image.")).finally(()=>{ e.target.value = ""; });
+});
 function renderProcs(){
-  const n = state.procs.length;
-  flowEl.innerHTML = n ? state.procs.map((p,i)=>stepHTML(p,i,n)).join("") : `<div class="empty" style="border-top:0">No steps yet. Add the main steps in the order material flows, then fill in only what you can get quickly.</div>`;
+  renderMapUI();
+  const n = PR().length;
+  flowEl.innerHTML = n ? PR().map((p,i)=>stepHTML(p,i,n)).join("") : `<div class="empty" style="border-top:0">No steps yet. Add the main steps in the order material flows, then fill in only what you can get quickly.</div>`;
   paintFlags();
 }
-function procFindings(){
-  const P = state.procs, out = [];
+function procFindings(P = PR()){
+  const out = [];
   const nm = i => P[i].name || `Step ${i+1}`;
   const add = (i,opp,tag,msg)=>out.push({i,opp,tag,msg});
   const ct = P.map(p=>num(p.ct));
@@ -596,7 +678,7 @@ function wrapName(t,max){
   return out;
 }
 function renderChart(){
-  const el = document.getElementById("chart"), P = state.procs;
+  const el = document.getElementById("chart"), P = PR();
   if(!P.length){ el.innerHTML = `<p class="hint">Add steps above and the flow chart appears here.</p>`; return; }
   const W = Math.max(el.clientWidth||640, 220), bw = 176, bh = 78, gx = 44, gy = 48, pad = 6;
   const cols = Math.max(1, Math.min(10, Math.floor((W - pad*2 + gx)/(bw+gx))));
@@ -632,25 +714,25 @@ function paintFlags(){
     el.querySelector(".tags").innerHTML = tags.map(t=>`<span>${esc(t)}</span>`).join("");
   });
   renderChart();
-  const cts = state.procs.map(p=>num(p.ct)).filter(x=>x!=null), tot = document.getElementById("totalTime");
-  tot.innerHTML = cts.length ? `Total processing time: <b>${fmtSec(cts.reduce((a,b)=>a+b,0))}</b> <span class="hint">(sum of cycle times, ${cts.length} of ${state.procs.length} steps have one)</span>` : `<span class="hint">Total processing time appears here once you enter cycle times.</span>`;
+  const cts = PR().map(p=>num(p.ct)).filter(x=>x!=null), tot = document.getElementById("totalTime");
+  tot.innerHTML = cts.length ? `Total processing time: <b>${fmtSec(cts.reduce((a,b)=>a+b,0))}</b> <span class="hint">(sum of cycle times, ${cts.length} of ${PR().length} steps have one)</span>` : `<span class="hint">Total processing time appears here once you enter cycle times.</span>`;
 }
 flowEl.addEventListener("input", e=>{
   const st = e.target.closest(".step"); const k = e.target.dataset.p; if(!st||!k) return;
-  state.procs[+st.dataset.i][k] = e.target.value; persist(); paintFlags();
+  PR()[+st.dataset.i][k] = e.target.value; persist(); paintFlags();
 });
 flowEl.addEventListener("click", e=>{
   const ins = e.target.closest("[data-ins]");
-  if(ins){ const at = +ins.dataset.ins + 1; state.procs.splice(at,0,{id:uid()}); persist(); renderProcs(); flowEl.querySelector(`.step[data-i="${at}"] input`).focus(); return; }
+  if(ins){ const at = +ins.dataset.ins + 1; PR().splice(at,0,{id:uid()}); persist(); renderProcs(); flowEl.querySelector(`.step[data-i="${at}"] input`).focus(); return; }
   const st = e.target.closest(".step"); if(!st) return; const i = +st.dataset.i;
   if(e.target.closest("[data-del]")){
-    const p = state.procs[i];
+    const p = PR()[i];
     if(PROC_FIELDS.some(([k])=>p[k]) && !confirm("Remove this step?")) return;
-    state.procs.splice(i,1); persist(); renderProcs(); toast("Step removed"); return;
+    PR().splice(i,1); persist(); renderProcs(); toast("Step removed"); return;
   }
   const mv = e.target.closest("[data-move]");
-  if(mv){ const j = i + +mv.dataset.move; if(j<0||j>=state.procs.length) return;
-    [state.procs[i],state.procs[j]] = [state.procs[j],state.procs[i]]; persist(); renderProcs(); }
+  if(mv){ const j = i + +mv.dataset.move; if(j<0||j>=PR().length) return;
+    [PR()[i],PR()[j]] = [PR()[j],PR()[i]]; persist(); renderProcs(); }
 });
 
 /* ---------- people and photos ---------- */
@@ -691,7 +773,7 @@ peopleEl.addEventListener("click", e=>{
 /* ---------- analysis engine ---------- */
 function measureHits(){
   const hits = {};
-  procFindings().forEach(f=>(hits[f.opp] = hits[f.opp] || []).push(f.msg));
+  state.maps.forEach(m=>procFindings(m.procs).forEach(f=>(hits[f.opp] = hits[f.opp] || []).push((state.maps.length>1 ? m.name+": " : "")+f.msg)));
   return hits;
 }
 
@@ -803,7 +885,7 @@ oppsEl.addEventListener("input", e=>{
 /* ---------- counts ---------- */
 function updateCounts(){
   document.getElementById("nWalk").textContent = CATS.filter(c=>state.obs[c.id] && state.obs[c.id].status).length + "/" + CATS.length;
-  document.getElementById("nMeasure").textContent = state.procs.length;
+  document.getElementById("nMeasure").textContent = state.maps.reduce((n,m)=>n+m.procs.length,0);
   document.getElementById("nPeople").textContent = state.interviews.length + state.photos.length;
   document.getElementById("nOpps").textContent = analyze().results.length;
 }
@@ -827,13 +909,19 @@ function reportText(){
     if(o.desc) L.push(`- Notes: ${o.desc}`);
     L.push("");
   });
-  if(state.procs.length){
-    L.push("## Process map", "", state.procs.map((p,i)=>p.name||`Step ${i+1}`).join(" > "), "", "| " + PROC_FIELDS.map(c=>c[1]).join(" | ") + " |", "|" + PROC_FIELDS.map(()=>"---").join("|") + "|");
-    const cts = state.procs.map(p=>num(p.ct)).filter(x=>x!=null);
-    if(cts.length) L.splice(L.length-2, 0, `Total processing time (sum of cycle times): ${fmtSec(cts.reduce((a,b)=>a+b,0))}`, "");
-    state.procs.forEach((p,i)=>L.push("| " + PROC_FIELDS.map(([k])=>String(p[k]||(k==="name"?`Step ${i+1}`:"")).replace(/\|/g,"/").replace(/\n/g," ")).join(" | ") + " |"));
-    L.push("");
-  }
+  state.maps.forEach(m=>{
+    if(!m.procs.length && !m.img) return;
+    L.push(`## Process map: ${m.name}`, "");
+    if(m.img) L.push("A picture of a drawn process map is attached in the tool.", "");
+    if(m.procs.length){
+      L.push(m.procs.map((p,i)=>p.name||`Step ${i+1}`).join(" > "), "");
+      const cts = m.procs.map(p=>num(p.ct)).filter(x=>x!=null);
+      if(cts.length) L.push(`Total processing time (sum of cycle times): ${fmtSec(cts.reduce((a,b)=>a+b,0))}`, "");
+      L.push("| " + PROC_FIELDS.map(c=>c[1]).join(" | ") + " |", "|" + PROC_FIELDS.map(()=>"---").join("|") + "|");
+      m.procs.forEach((p,i)=>L.push("| " + PROC_FIELDS.map(([k])=>String(p[k]||(k==="name"?`Step ${i+1}`:"")).replace(/\|/g,"/").replace(/\n/g," ")).join(" | ") + " |"));
+      L.push("");
+    }
+  });
   if(state.interviews.length){ L.push("## Interview notes"); state.interviews.forEach(r=>L.push(`- ${r.role||"Unspecified role"}${r.cat&&CAT[r.cat]?" ("+CAT[r.cat].name+")":""}: ${r.note||""}`)); L.push(""); }
   if(state.photos.length){ L.push("## Photo log"); state.photos.forEach(r=>L.push(`- ${r.num||"?"}: ${r.loc||""}${r.cat&&CAT[r.cat]?" ("+CAT[r.cat].name+")":""} ${r.note||""}`)); L.push(""); }
   L.push("## Possible opportunities (generated from entries; not conclusions)");
@@ -920,7 +1008,12 @@ ${reportText()}`;
 document.addEventListener("click", e=>{
   const b = e.target.closest("[data-act]"); if(!b) return;
   const act = b.dataset.act;
-  if(act==="addProc"){ state.procs.push({id:uid()}); persist(); renderProcs(); const r = flowEl.querySelectorAll(".step"); r[r.length-1].querySelector("input").focus(); r[r.length-1].scrollIntoView({block:"nearest",inline:"nearest"}); }
+  if(act==="delMap"){
+    if(state.maps.length>1 && confirm("Delete this process map and its steps?")){ state.maps.splice(state.activeMap,1); state.activeMap = Math.max(0,state.activeMap-1); persist(); renderProcs(); toast("Map deleted"); }
+  }
+  if(act==="addPic") document.getElementById("picFile").click();
+  if(act==="rmPic"){ curMap().img = ""; persist(); renderPic(); toast("Picture removed"); }
+  if(act==="addProc"){ PR().push({id:uid()}); persist(); renderProcs(); const r = flowEl.querySelectorAll(".step"); r[r.length-1].querySelector("input").focus(); r[r.length-1].scrollIntoView({block:"nearest",inline:"nearest"}); }
   if(act==="addInt"){ state.interviews.push({id:uid()}); persist(); renderPeople(); }
   if(act==="addPhoto"){ const n = Math.max(0,...state.photos.map(p=>parseInt(p.num)||0))+1; state.photos.push({id:uid(), num:String(n)}); persist(); renderPeople(); }
   if(act==="exportMd") offer(`plant-diagnostic-${stamp()}.md`, reportText());
