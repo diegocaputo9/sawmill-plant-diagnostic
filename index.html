@@ -37,7 +37,7 @@ button,input,select,textarea{font:inherit; color:inherit}
 
 /* header: a quiet strip, not a dashboard bar */
 .top{position:sticky; top:env(safe-area-inset-top,0px); z-index:5; background:var(--page); border-bottom:1px solid var(--rule)}
-.top-inner{max-width:1040px; margin:0 auto; padding:14px 24px 0}
+.top-inner{max-width:2200px; margin:0 auto; padding:14px clamp(16px,3vw,56px) 0}
 .brand{display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap; border-top:3px solid var(--rule-strong); padding-top:10px}
 .brand h1{font-size:1rem; font-weight:700; letter-spacing:.005em}
 .brand h1 span{font-weight:400; color:var(--muted); margin-left:.4em}
@@ -51,10 +51,12 @@ button,input,select,textarea{font:inherit; color:inherit}
 .tab .n{margin-left:6px; font-weight:400; color:var(--muted); font-size:.85rem}
 
 /* page layout: section heading column + working column */
-main{max-width:1040px; margin:0 auto; padding:36px 24px 96px}
+main{max-width:2200px; margin:0 auto; padding:36px clamp(16px,3vw,56px) 96px}
 .panel{display:none}
-.panel.on{display:grid; grid-template-columns:minmax(0,15rem) minmax(0,1fr); gap:0 48px; align-items:start}
+.panel.on{display:grid; grid-template-columns:clamp(11rem,13vw,15rem) minmax(0,1fr); gap:0 clamp(24px,3vw,56px); align-items:start}
 .lede{position:sticky; top:124px}
+#p-measure.on{grid-template-columns:1fr}
+#p-measure .lede{position:static; margin-bottom:22px; max-width:80ch}
 .lede h2{font-size:1.75rem; font-weight:680; font-stretch:92%; letter-spacing:-.01em; margin-bottom:10px}
 .intro{color:var(--muted); font-size:.93rem; line-height:1.55; margin:0}
 .work{min-width:0}
@@ -131,8 +133,9 @@ td.hint{padding:18px 0}
 .rm[data-del]:hover{border-color:var(--danger)}
 
 /* process map: boxes in flow order */
-.flow{display:flex; align-items:stretch; overflow-x:auto; padding:4px 2px 18px}
-.step{flex:0 0 240px; background:var(--field); border:1px solid var(--rule-strong); border-radius:2px; padding:12px; display:flex; flex-direction:column; gap:10px}
+.flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:16px 0; padding:4px 2px 18px}
+.unit{display:flex; align-items:stretch}
+.step{flex:0 0 224px; background:var(--field); border:1px solid var(--rule-strong); border-radius:2px; padding:12px; display:flex; flex-direction:column; gap:10px}
 .step.flag{box-shadow:inset 0 4px 0 var(--accent); padding-top:14px}
 .step-top{display:grid; grid-template-columns:1.6rem minmax(0,1fr); gap:8px; align-items:center}
 .step-n{font-size:.85rem; font-weight:650; color:var(--muted)}
@@ -142,15 +145,18 @@ td.hint{padding:18px 0}
 .addbox{flex:0 0 150px; border:1.5px dashed var(--muted); background:none; border-radius:2px; color:var(--ink); font-weight:600; font-size:.93rem; cursor:pointer; min-height:72px}
 .addbox:hover{border-color:var(--ink); background:var(--field)}
 .chartwrap{overflow-x:auto; padding:8px 0}
+.total{margin:14px 0 0; font-size:1rem}
+.total b{font-weight:700}
 .chartwrap svg{display:block}
 .step label.f{font-size:.72rem; gap:4px}
-.step input[type=number]{padding:6px 6px; min-height:40px}
+.step input[type=number],.step input[type=text]{padding:6px 8px; min-height:38px}
+.step textarea{min-height:52px}
 .step details summary{font-size:.85rem; font-weight:500; color:var(--muted)}
 .tags{display:flex; flex-wrap:wrap; gap:4px 10px; font-size:.78rem; font-weight:650; color:var(--accent-text); min-height:0}
 .tags:empty{display:none}
 .step-actions{display:flex; gap:6px; margin-top:auto}
 .step-actions .rm:last-child{margin-left:auto}
-.link{flex:0 0 52px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:var(--muted)}
+.link{flex:0 0 40px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:var(--muted)}
 .ins{width:30px; height:30px; border:1px solid var(--rule); border-radius:50%; background:var(--field); color:var(--muted); cursor:pointer; font-size:1.1rem; line-height:1; padding:0}
 .ins:hover{border-color:var(--ink); color:var(--ink)}
 
@@ -186,7 +192,8 @@ details[open] summary{margin-bottom:4px}
 .toast{position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); background:var(--ink); color:var(--page); padding:10px 16px; border-radius:2px; font-size:.92rem; z-index:10}
 
 @media (max-width:820px){
-  .flow{flex-direction:column; overflow:visible; padding-bottom:4px}
+  .flow{flex-direction:column; flex-wrap:nowrap; gap:0; padding-bottom:4px}
+  .unit{display:contents}
   .step,.addbox{flex-basis:auto}
   .addbox{padding:14px}
   .link{flex-basis:auto; flex-direction:row; padding:8px 0}
@@ -260,8 +267,7 @@ details[open] summary{margin-bottom:4px}
     <div class="work">
     <div class="block"><div class="flow" id="flow"></div>
     <div class="actions"><button class="btn" data-act="addProc">Add step</button></div></div>
-    <div class="block"><h3>Flow chart</h3><p class="hint">Built from the steps above, in order. An orange outline marks a step flagged by the rules below.</p><div class="chartwrap" id="chart"></div></div>
-    <p class="hint" style="max-width:68ch">Rules used in the analysis: a step with a cycle time at least 30% longer than the step before or after it, and the largest queue sitting in front of the slowest step. Changeover and notes are kept for context and the report. Thresholds are starting points for discussion, not standards.</p>
+    <div class="block"><h3>Flow chart</h3><p class="hint">Built from the steps above, in order. An orange outline marks a step with a much longer cycle time than its neighbor, or the largest queue in front of the slowest step.</p><div class="chartwrap" id="chart"></div><p class="total" id="totalTime"></p></div>
     </div>
   </section>
 
@@ -365,7 +371,8 @@ const OPPS = [
 
 const FREQ = [["","Frequency"],["1","Rare"],["2","Occasional"],["3","Frequent"],["4","Constant"]];
 const IMPACT = [["","Impact"],["1","Low"],["2","Medium"],["3","High"]];
-const PROC_FIELDS = [["name","Step"],["ct","Cycle time (s)"],["wipB","WIP before"],["co","Changeover"],["note","Notes"]];
+const PROC_FIELDS = [["name","Step"],["ct","Cycle time (s)"],["wipB","WIP before"],["coS","Changeover time (s)"],["epe","EPE"],["note","Notes"]];
+const fmtSec = t => { const r = Math.round(t*10)/10; if(r<60) return r+" s"; const m = Math.floor(r/60), sec = Math.round((r-m*60)*10)/10; return `${m} min${sec?" "+sec+" s":""} (${r} s)`; };
 const VISIT_FIELDS = [
  ["plant","Plant","text"],["date","Date","date"],["time","Time","time"],["location","Location","text"],
  ["areas","Areas visited","text"],["with","People accompanying me","text"],["interviewed","People interviewed (roles)","text"],
@@ -542,18 +549,19 @@ catsEl.addEventListener("input", e=>{
 const flowEl = document.getElementById("flow");
 const ARROW = `<svg width="28" height="14" viewBox="0 0 28 14" aria-hidden="true"><path d="M0 7h24M18 1l7 6-7 6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`;
 function stepHTML(p,i,n){
-  const more = p.ct||p.wipB||p.co||p.note;
-  return `<div class="step" data-i="${i}">
+  const more = p.ct||p.wipB||p.coS||p.epe||p.note;
+  return `<div class="unit"><div class="step" data-i="${i}">
     <div class="step-top"><span class="step-n">${i+1}</span><input type="text" data-p="name" value="${esc(p.name)}" placeholder="Process name" aria-label="Step ${i+1} name"></div>
     <details ${more?"open":""}><summary>More details</summary><div class="mini2">
-      <label class="f">Cycle time (s)<input type="number" inputmode="decimal" step="any" min="0" data-p="ct" value="${esc(p.ct)}"></label>
+      <label class="f">Cycle time (seconds)<input type="number" inputmode="decimal" step="any" min="0" data-p="ct" value="${esc(p.ct)}"></label>
       <label class="f">WIP before<input type="number" inputmode="decimal" step="any" min="0" data-p="wipB" value="${esc(p.wipB)}"></label>
-      <label class="f wide">Changeover<input type="text" data-p="co" value="${esc(p.co)}" placeholder="e.g. about 20 min between sizes"></label>
+      <label class="f">Changeover time (seconds)<input type="number" inputmode="decimal" step="any" min="0" data-p="coS" value="${esc(p.coS)}"></label>
+      <label class="f">Every Part Every (EPE)<input type="text" data-p="epe" value="${esc(p.epe)}" placeholder="e.g. 2 days"></label>
       <label class="f wide">Notes<textarea data-p="note">${esc(p.note)}</textarea></label></div></details>
     <div class="tags"></div>
     <div class="step-actions"><button type="button" class="rm" data-move="-1" ${i===0?"disabled":""}>Earlier</button><button type="button" class="rm" data-move="1" ${i===n-1?"disabled":""}>Later</button><button type="button" class="rm" data-del>Remove</button></div>
   </div>` + (i<n-1 ? `<div class="link">${ARROW}<button type="button" class="ins" data-ins="${i}" aria-label="Insert a step after step ${i+1}" title="Insert a step here">+</button></div>`
-    : `<div class="link">${ARROW}</div><button type="button" class="addbox" data-act="addProc">+ Add step</button>`);
+    : `<div class="link">${ARROW}</div><button type="button" class="addbox" data-act="addProc">+ Add step</button>`) + `</div>`;
 }
 function renderProcs(){
   const n = state.procs.length;
@@ -591,7 +599,7 @@ function renderChart(){
   const el = document.getElementById("chart"), P = state.procs;
   if(!P.length){ el.innerHTML = `<p class="hint">Add steps above and the flow chart appears here.</p>`; return; }
   const W = Math.max(el.clientWidth||640, 220), bw = 176, bh = 78, gx = 44, gy = 48, pad = 6;
-  const cols = Math.max(1, Math.min(5, Math.floor((W - pad*2 + gx)/(bw+gx))));
+  const cols = Math.max(1, Math.min(10, Math.floor((W - pad*2 + gx)/(bw+gx))));
   const rows = Math.ceil(P.length/cols);
   const w = cols*bw + (cols-1)*gx + pad*2, h = rows*bh + (rows-1)*gy + pad*2;
   const pos = i => ({x: pad + (i%cols)*(bw+gx), y: pad + Math.floor(i/cols)*(bh+gy)});
@@ -624,6 +632,8 @@ function paintFlags(){
     el.querySelector(".tags").innerHTML = tags.map(t=>`<span>${esc(t)}</span>`).join("");
   });
   renderChart();
+  const cts = state.procs.map(p=>num(p.ct)).filter(x=>x!=null), tot = document.getElementById("totalTime");
+  tot.innerHTML = cts.length ? `Total processing time: <b>${fmtSec(cts.reduce((a,b)=>a+b,0))}</b> <span class="hint">(sum of cycle times, ${cts.length} of ${state.procs.length} steps have one)</span>` : `<span class="hint">Total processing time appears here once you enter cycle times.</span>`;
 }
 flowEl.addEventListener("input", e=>{
   const st = e.target.closest(".step"); const k = e.target.dataset.p; if(!st||!k) return;
@@ -819,6 +829,8 @@ function reportText(){
   });
   if(state.procs.length){
     L.push("## Process map", "", state.procs.map((p,i)=>p.name||`Step ${i+1}`).join(" > "), "", "| " + PROC_FIELDS.map(c=>c[1]).join(" | ") + " |", "|" + PROC_FIELDS.map(()=>"---").join("|") + "|");
+    const cts = state.procs.map(p=>num(p.ct)).filter(x=>x!=null);
+    if(cts.length) L.splice(L.length-2, 0, `Total processing time (sum of cycle times): ${fmtSec(cts.reduce((a,b)=>a+b,0))}`, "");
     state.procs.forEach((p,i)=>L.push("| " + PROC_FIELDS.map(([k])=>String(p[k]||(k==="name"?`Step ${i+1}`:"")).replace(/\|/g,"/").replace(/\n/g," ")).join(" | ") + " |"));
     L.push("");
   }
