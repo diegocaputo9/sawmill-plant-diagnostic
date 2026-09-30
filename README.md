@@ -1,6 +1,6 @@
 # Sawmill Lean and CI Plant Diagnostic
 
-A single page field tool for collecting structured evidence during a sawmill plant visit: visit details, a plant walk checklist, process data, interview notes, and a photo log. Entries are combined into possible improvement opportunities, each showing which evidence sources support it (observation, people, data) and which Lean or CI methods could be considered.
+A single page field tool for collecting structured evidence during a sawmill plant visit: visit details, a plant walk checklist, a high level process map, interview notes, and a photo log. Entries are combined into possible improvement opportunities, each showing which evidence sources support it (observation, people, data) and which Lean or CI methods could be considered.
 
 Developed at Auburn University as part of an Auburn University Rural Partnership Institute (AURPI) project.
 
