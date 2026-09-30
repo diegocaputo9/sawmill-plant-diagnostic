@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sawmill Lean and CI Diagnostic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@85..100,300..700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#F4F5F6; --field:#FFFFFF; --ink:#14202F; --muted:#586270; --rule:#D3D8DE; --rule-strong:#14202F;
+  --tint:#E9ECEF; --accent:#E86100; --accent-text:#B84C00; --accent-ink:#FFFFFF;
+  --good:#1D6A44; --warn:#963A00; --danger:#A12C1F;
+  --sans:"Archivo", "Helvetica Neue", Arial, sans-serif; color-scheme:light dark;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --page:#12171E; --field:#1A212B; --ink:#E4E8EC; --muted:#9AA4B0; --rule:#2C3542; --rule-strong:#C9D1DA;
+    --tint:#202936; --accent:#F07A2A; --accent-text:#FF9E5E; --accent-ink:#12171E; --good:#5CC28F; --warn:#FFAE6B; --danger:#FF8A7A;
+  }
+}
+[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark;
+  --page:#12171E; --field:#1A212B; --ink:#E4E8EC; --muted:#9AA4B0; --rule:#2C3542; --rule-strong:#C9D1DA;
+  --tint:#202936; --accent:#F07A2A; --accent-text:#FF9E5E; --accent-ink:#12171E; --good:#5CC28F; --warn:#FFAE6B; --danger:#FF8A7A;
+}
+html{height:100%; scroll-padding-top:calc(env(safe-area-inset-top,0px) + 108px);}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0; background:var(--page); color:var(--ink); font:16px/1.5 var(--sans); font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0; font-weight:650; line-height:1.15; color:var(--ink)}
+button,input,select,textarea{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.hidden{display:none !important}
+
+/* header: a quiet strip, not a dashboard bar */
+.top{position:sticky; top:env(safe-area-inset-top,0px); z-index:5; background:var(--page); border-bottom:1px solid var(--rule)}
+.top-inner{max-width:1040px; margin:0 auto; padding:14px 24px 0}
+.brand{display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap; border-top:3px solid var(--rule-strong); padding-top:10px}
+.brand h1{font-size:1rem; font-weight:700; letter-spacing:.005em}
+.brand h1 span{font-weight:400; color:var(--muted); margin-left:.4em}
+.brand h1 span:empty{display:none}
+.status{font-size:.82rem; color:var(--muted)}
+.tabs{display:flex; gap:28px; overflow-x:auto; margin-top:10px; scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{background:none; border:0; padding:8px 0 11px; color:var(--muted); font-size:.95rem; font-weight:500; cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink); font-weight:650; border-bottom-color:var(--ink)}
+.tab .n{margin-left:6px; font-weight:400; color:var(--muted); font-size:.85rem}
+
+/* page layout: section heading column + working column */
+main{max-width:1040px; margin:0 auto; padding:36px 24px 96px}
+.panel{display:none}
+.panel.on{display:grid; grid-template-columns:minmax(0,15rem) minmax(0,1fr); gap:0 48px; align-items:start}
+.lede{position:sticky; top:124px}
+.lede h2{font-size:1.75rem; font-weight:680; font-stretch:92%; letter-spacing:-.01em; margin-bottom:10px}
+.intro{color:var(--muted); font-size:.93rem; line-height:1.55; margin:0}
+.work{min-width:0}
+
+/* blocks separated by rules, not boxes */
+.block{border-top:1px solid var(--rule-strong); padding:18px 0 28px}
+.block + .block{margin-top:8px}
+.block h3{font-size:1.05rem; font-weight:650; margin-bottom:6px}
+.grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:18px 20px}
+label.f{display:flex; flex-direction:column; gap:6px; font-size:.84rem; font-weight:500; color:var(--muted)}
+input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{
+  background:var(--field); border:1px solid var(--rule); border-radius:2px; padding:9px 10px; min-height:44px; width:100%; color:var(--ink); font-size:1rem}
+input:hover,select:hover,textarea:hover{border-color:var(--muted)}
+textarea{min-height:72px; resize:vertical; max-width:100%; display:block}
+::placeholder{color:var(--muted); opacity:.75}
+.hint{font-size:.85rem; color:var(--muted); line-height:1.5}
+
+/* buttons: one solid primary, the rest are plain */
+.btn{border:1px solid var(--ink); border-radius:2px; padding:10px 18px; min-height:44px; cursor:pointer; font-weight:600; font-size:.93rem; background:var(--ink); color:var(--page)}
+.btn.alt{background:transparent; color:var(--ink); border-color:var(--rule)}
+.btn.alt:hover{border-color:var(--ink)}
+.btn.danger{background:transparent; border-color:transparent; color:var(--danger); text-decoration:underline; text-underline-offset:3px; padding-left:4px; padding-right:4px}
+.btn:disabled{opacity:.45; cursor:default}
+.actions{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:14px 0 0}
+.actions .spacer{flex:1}
+
+/* plant walk: a ledger of numbered lines */
+#cats{border-top:1px solid var(--rule-strong); counter-reset:cat}
+.cat{border-bottom:1px solid var(--rule)}
+.cat-head{display:grid; grid-template-columns:2.2rem minmax(0,1fr) auto; align-items:center; gap:12px; padding:10px 0; min-height:60px}
+.cat-head::before{counter-increment:cat; content:counter(cat, decimal-leading-zero); color:var(--muted); font-size:.85rem}
+.cat-head h3{font-size:1rem; font-weight:500}
+.cat[data-status="yes"] .cat-head h3,.cat[data-status="unclear"] .cat-head h3{font-weight:650}
+.cat[data-status="yes"] .cat-head::before{color:var(--accent-text); font-weight:650}
+.cat[data-status="no"] .cat-head h3{color:var(--muted)}
+.seg{display:inline-flex}
+.seg button{border:1px solid var(--rule); background:var(--field); min-width:56px; min-height:40px; padding:6px 10px; cursor:pointer; font-size:.88rem; font-weight:500; color:var(--muted)}
+.seg button+button{margin-left:-1px}
+.seg button:first-child{border-radius:2px 0 0 2px}
+.seg button:last-child{border-radius:0 2px 2px 0}
+.seg button:hover{color:var(--ink); position:relative}
+.seg button[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--page); position:relative; z-index:1}
+.seg button[data-v="yes"][aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
+.cat-body{padding:2px 0 24px 3.3rem}
+.sublabel{font-size:.8rem; font-weight:650; color:var(--muted); margin:18px 0 8px; letter-spacing:.01em}
+.cat-body .sublabel:first-child{margin-top:4px}
+.checks{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:0 20px; margin-bottom:6px}
+.chk{display:flex; gap:10px; align-items:flex-start; padding:7px 0; cursor:pointer; line-height:1.4}
+.chk input{width:20px; height:20px; margin:1px 0 0; accent-color:var(--accent); flex:none}
+/* evidence toggles read as form checkboxes, not pills */
+.chips{display:flex; flex-wrap:wrap; gap:4px 22px}
+.chip{display:inline-flex; align-items:center; gap:9px; border:0; background:none; padding:8px 0; min-height:40px; cursor:pointer; font-size:.95rem; color:var(--ink)}
+.chip::before{content:""; width:18px; height:18px; border:1.5px solid var(--muted); border-radius:2px; flex:none; background:var(--field) center/12px no-repeat}
+.chip[aria-pressed="true"]::before{background-color:var(--ink); border-color:var(--ink);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.2l2.6 2.6L10 3.4' fill='none' stroke='white' stroke-width='1.8'/%3E%3C/svg%3E")}
+.chip[data-o-toggle][aria-pressed="true"]::before{background-color:var(--accent); border-color:var(--accent)}
+
+/* tables: form sheet */
+.scroll{overflow-x:auto}
+table{border-collapse:collapse; width:100%; min-width:760px; font-size:.92rem}
+th,td{border-bottom:1px solid var(--rule); padding:6px 6px 6px 0; text-align:left; vertical-align:top}
+th{font-size:.78rem; font-weight:650; color:var(--muted); white-space:nowrap; padding-top:10px; padding-bottom:8px}
+td input,td select{min-height:38px; padding:6px 8px}
+td.num input{width:84px; text-align:right}
+td.hint{padding:18px 0}
+.rowbtns{display:flex; gap:2px}
+.iconbtn{border:1px solid transparent; background:none; border-radius:2px; min-width:36px; min-height:38px; cursor:pointer; color:var(--muted); font-size:1rem}
+.iconbtn:hover{border-color:var(--rule); color:var(--ink)}
+.iconbtn[data-del]:hover{color:var(--danger)}
+
+/* opportunities: ranked ledger */
+.opp{display:grid; grid-template-columns:2.2rem minmax(0,1fr) 5.5rem; gap:0 16px; padding:20px 0 22px; border-bottom:1px solid var(--rule)}
+#opps{border-top:1px solid var(--rule-strong)}
+.rank{font-size:1.6rem; font-weight:300; color:var(--muted); line-height:1; padding-top:2px}
+.opp:last-child{border-bottom:0}
+.opp h3{font-size:1.2rem; font-weight:650; margin-bottom:4px}
+.strength{font-size:.86rem; font-weight:600; margin:0 0 12px}
+.s3{color:var(--good)} .s2{color:var(--ink)} .s1{color:var(--accent-text)}
+.weight{display:flex; align-items:center; gap:10px; font-size:.78rem; color:var(--muted); margin-bottom:12px}
+.bar{flex:0 1 180px; height:3px; background:var(--tint)}
+.bar i{display:block; height:100%; background:var(--ink)}
+.methods{margin:0 0 10px; font-size:.95rem}
+.methods b{font-weight:650}
+.opp ul{margin:4px 0 10px; padding-left:1.1rem}
+.opp li{margin:3px 0}
+details summary{cursor:pointer; font-weight:600; font-size:.92rem; padding:4px 0; color:var(--ink); list-style-position:outside}
+details[open] summary{margin-bottom:4px}
+.tri{text-align:center}
+.tri svg{display:block; margin:0 auto}
+.tri small{display:block; font-size:.75rem; color:var(--muted); margin-top:4px; line-height:1.3}
+.star{display:inline-flex; align-items:center; gap:8px; border:0; background:none; padding:6px 0; margin-top:12px; min-height:40px; cursor:pointer; font-weight:600; font-size:.9rem; color:var(--ink)}
+.star::before{content:""; width:18px; height:18px; border:1.5px solid var(--muted); border-radius:2px; background:var(--field) center/12px no-repeat}
+.star[aria-pressed="true"]::before{background-color:var(--accent); border-color:var(--accent);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.2l2.6 2.6L10 3.4' fill='none' stroke='white' stroke-width='1.8'/%3E%3C/svg%3E")}
+.notice{border-top:3px solid var(--warn); padding:12px 0 14px; margin-bottom:20px; color:var(--ink)}
+.notice strong{color:var(--warn)}
+.empty{padding:28px 0; color:var(--muted); border-top:1px solid var(--rule-strong); max-width:52ch}
+.after{margin-top:40px}
+.ai-out{white-space:pre-wrap; border-left:2px solid var(--rule); padding:4px 0 4px 16px; margin-top:16px; max-height:560px; overflow:auto; line-height:1.6; max-width:72ch}
+.toast{position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); background:var(--ink); color:var(--page); padding:10px 16px; border-radius:2px; font-size:.92rem; z-index:10}
+
+@media (max-width:820px){
+  .panel.on{grid-template-columns:1fr}
+  .lede{position:static; margin-bottom:22px}
+  .lede h2{font-size:1.5rem}
+  main{padding-top:24px}
+}
+@media (max-width:560px){
+  .top-inner{padding:10px 16px 0}
+  .tabs{gap:20px}
+  main{padding:20px 16px 80px}
+  .cat-head{grid-template-columns:1.6rem minmax(0,1fr) auto; gap:8px}
+  .seg button{min-width:0; padding:6px 9px; font-size:.84rem}
+  .cat-body{padding-left:0}
+  .opp{grid-template-columns:1.6rem minmax(0,1fr); }
+  .opp .tri{grid-column:2; grid-row:1; justify-self:start; display:flex; align-items:center; gap:8px; margin-bottom:8px}
+  .opp .tri small{margin:0; text-align:left}
+  .opp .rank{grid-row:1 / span 2}
+}
+@media (max-width:560px){ .opp .main{grid-column:2; grid-row:2} }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <h1>Plant diagnostic <span id="plantLabel"></span></h1>
+      <div class="status" id="saveStatus" aria-live="polite">Saved on this device</div>
+    </div>
+    <nav class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-tab="visit" aria-selected="true">Visit</button>
+      <button class="tab" role="tab" data-tab="walk" aria-selected="false">Plant walk <span class="n" id="nWalk">0</span></button>
+      <button class="tab" role="tab" data-tab="measure" aria-selected="false">Process data <span class="n" id="nMeasure">0</span></button>
+      <button class="tab" role="tab" data-tab="people" aria-selected="false">People and photos <span class="n" id="nPeople">0</span></button>
+      <button class="tab" role="tab" data-tab="analyze" aria-selected="false">Opportunities <span class="n" id="nOpps">0</span></button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- VISIT -->
+  <section class="panel on" id="p-visit" role="tabpanel">
+    <div class="lede"><h2>Visit</h2><p class="intro">Record the basics first. Everything saves as you type. Fill in only what you can; empty fields are fine.</p></div>
+    <div class="work">
+      <div class="block"><div class="grid" id="visitFields"></div></div>
+      <div class="block">
+        <h3>Visit file</h3>
+        <p class="hint">Export a copy for your records or start a new visit. Starting a new visit clears this one from the tool.</p>
+        <div class="actions">
+          <button class="btn alt" data-act="exportJson">Export data (JSON)</button>
+          <button class="btn alt" data-act="importJson">Import data</button>
+          <span class="spacer"></span>
+          <button class="btn danger" data-act="newVisit">Start a new visit</button>
+        </div>
+        <input type="file" id="importFile" accept=".json,application/json" class="hidden">
+      </div>
+    </div>
+  </section>
+
+  <!-- WALK -->
+  <section class="panel" id="p-walk" role="tabpanel">
+    <div class="lede"><h2>Plant walk</h2><p class="intro">For each area, mark whether you observed it. Choose Yes to open quick details. Check only what you actually saw or were told; these are areas to look at, not assumed problems.</p></div>
+    <div class="work"><div id="cats"></div></div>
+  </section>
+
+  <!-- MEASURE -->
+  <section class="panel" id="p-measure" role="tabpanel">
+    <div class="lede"><h2>Process data</h2><p class="intro">One row per process, in flow order from upstream to downstream. This also serves as your mini VSM data capture. Leave blank anything you could not get, and note where each number came from.</p></div>
+    <div class="work">
+    <div class="block"><div class="scroll"><table id="procTable"></table></div>
+    <div class="actions"><button class="btn" data-act="addProc">Add process</button></div></div>
+    <p class="hint" style="max-width:68ch">Rules used in the analysis: downtime at or above 10% of observed time, changeovers of 15 minutes or more, scrap or rework at or above 3% of output, waiting of 10 minutes or more, and a step at least 30% slower than the one before or after it. Thresholds are starting points for discussion, not standards.</p>
+    </div>
+  </section>
+
+  <!-- PEOPLE -->
+  <section class="panel" id="p-people" role="tabpanel">
+    <div class="lede"><h2>People and photos</h2><p class="intro">Log what operators and supervisors tell you, and link each note to the area it concerns. Linked notes count as People evidence in the analysis.</p></div>
+    <div class="work">
+    <div class="block">
+      <h3>Interview notes</h3>
+      <div class="scroll"><table id="intTable"></table></div>
+      <div class="actions"><button class="btn" data-act="addInt">Add note</button></div>
+    </div>
+    <div class="block">
+      <h3>Photo log</h3>
+      <div class="scroll"><table id="photoTable"></table></div>
+      <div class="actions"><button class="btn" data-act="addPhoto">Add photo</button></div>
+    </div>
+    </div>
+  </section>
+
+  <!-- ANALYZE -->
+  <section class="panel" id="p-analyze" role="tabpanel">
+    <div class="lede"><h2>Opportunities</h2><p class="intro">Possible opportunities based only on what you entered. Each one shows which evidence sources support it: Observation, People, and Data. Treat single source items as leads to validate, not conclusions. The method list shows options to consider, not a decision.</p></div>
+    <div class="work">
+    <div id="safety"></div>
+    <div id="opps"></div>
+    <div id="unlinked"></div>
+    <div class="block after" id="aiCard">
+      <h3>Second opinion from Claude</h3>
+      <p class="hint">Sends your entries (not your photos) to Claude and asks for a review of the evidence: what looks supported, what is missing, and what to check before selecting a project.</p>
+      <div class="actions"><button class="btn" id="aiBtn" data-act="ai">Ask Claude to review</button><button class="btn alt hidden" id="aiStop" data-act="aiStop">Stop</button></div>
+      <div id="aiOut" class="ai-out hidden" aria-live="polite"></div>
+    </div>
+    <div class="block">
+      <h3>Report</h3>
+      <p class="hint">A plain text summary of the visit, the evidence, and the opportunities you marked as candidates.</p>
+      <div class="actions">
+        <button class="btn" data-act="exportMd">Download report (.md)</button>
+        <button class="btn alt" data-act="exportCsv">Download observations (.csv)</button>
+        <button class="btn alt" data-act="copyReport">Copy report</button>
+      </div>
+      <textarea id="copyArea" class="hidden" readonly style="min-height:200px;margin-top:14px"></textarea>
+    </div>
+    </div>
+  </section>
+</main>
+<div class="toast hidden" id="toast" role="status"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- reference data ---------- */
+const CATS = [
+ {id:"5s", name:"5S and workplace organization", sig:[["5s1","Tools or parts without a set place"],["5s2","Time spent searching for items"],["5s3","Sawdust, bark, or debris buildup affecting work"],["5s4","Unneeded items in the work area"]]},
+ {id:"mat", name:"Material movement", sig:[["mat1","Long loader or forklift travel"],["mat2","Material handled more than once"],["mat3","Backtracking or crossing flows"],["mat4","Staging areas unclear or overflowing"]]},
+ {id:"wait", name:"Waiting", sig:[["wait1","Machine waiting for material (starved)"],["wait2","Machine stopped because downstream is full (blocked)"],["wait3","People waiting for maintenance, instructions, or material"]]},
+ {id:"wip", name:"Inventory and WIP", sig:[["wip1","Material piling up between two processes"],["wip2","Large log or lumber inventory with no clear reason"],["wip3","Buffer levels change a lot during the visit"]]},
+ {id:"motion", name:"Motion", sig:[["mot1","Operators leave their station often"],["mot2","Reaching, bending, or turning to get tools or material"]]},
+ {id:"def", name:"Defects", sig:[["def1","Visible defects such as size variation, wane, or skips"],["def2","Boards downgraded or rejected at grading"],["def3","Defects traced to a specific machine or setting"]]},
+ {id:"rw", name:"Rework", sig:[["rw1","Boards run, trimmed, or sorted a second time"],["rw2","Product sent back to an earlier step"]]},
+ {id:"op", name:"Overprocessing", sig:[["op1","More cutting, planing, or handling than the product needs"],["op2","Duplicate checks or approvals"]]},
+ {id:"ovp", name:"Overproduction", sig:[["ovp1","Producing ahead of orders or schedule"],["ovp2","Finished goods inventory growing"]]},
+ {id:"flow", name:"Flow interruptions", sig:[["flow1","Stop and go flow on a line"],["flow2","Jams or pileups on conveyors or transfers"],["flow3","One process clearly slower than its neighbors"]]},
+ {id:"down", name:"Equipment downtime", sig:[["dt1","Unplanned stops during the visit"],["dt2","Frequent minor stops cleared by operators"],["dt3","Same machine mentioned repeatedly as a problem"]]},
+ {id:"co", name:"Changeovers", sig:[["co1","Changeovers (size, pattern, setup) take a long time"],["co2","Searching for tools or parts during setup"],["co3","Trial and error adjustments after setup"],["co4","Frequent product or size changes"]]},
+ {id:"sw", name:"Standard work", sig:[["sw1","Same task done differently by different people"],["sw2","No written or visual instructions at the station"],["sw3","Results differ between shifts or crews"],["sw4","Key knowledge held by one or two people"]]},
+ {id:"vm", name:"Visual management", sig:[["vm1","No display of production versus target"],["vm2","Problems or abnormal conditions not visible at a glance"],["vm3","Area status unclear without asking someone"]]},
+ {id:"qc", name:"Quality controls", sig:[["qc1","Few or no checks at the point of production"],["qc2","Measurements taken but not recorded or used"],["qc3","Problems found late in the process"]]},
+ {id:"mnt", name:"Maintenance", sig:[["mnt1","Maintenance is mostly reactive"],["mnt2","No visible preventive or operator maintenance routine"],["mnt3","Spare parts or tools not available when needed"]]},
+ {id:"erg", name:"Safety and ergonomics", sig:[["erg1","Awkward lifting, reaching, or twisting"],["erg2","Repetitive manual handling"],["erg3","Guarding, noise, dust, or exposure concern"]]},
+ {id:"ci", name:"Continuous improvement", sig:[["ci1","No structured problem solving routine"],["ci2","Operator ideas not captured or acted on"],["ci3","Recurring problems handled with quick fixes"],["ci4","No regular review of performance data"]]},
+ {id:"other", name:"Other waste", sig:[["oth1","Waste not covered by the areas above (describe it)"]]}
+];
+const CAT = Object.fromEntries(CATS.map(c=>[c.id,c]));
+const SIG = {}; CATS.forEach(c=>c.sig.forEach(([id,t])=>SIG[id]={text:t,cat:c.id}));
+
+const OPPS = [
+ {id:"downtime", title:"Reduce unplanned equipment stoppages", sig:["dt1","dt2","dt3","mnt1","mnt2","mnt3","wait3"], cats:["down","mnt"],
+  tools:["TPM","Root Cause Analysis","Visual Management"],
+  check:["Downtime log by machine and cause for recent weeks","Top stop reasons and how often they recur","Who responds to stops and how long it takes"]},
+ {id:"flow", title:"Relieve a flow constraint between processes", sig:["wait1","wait2","wip1","wip3","flow1","flow2","flow3"], cats:["wait","wip","flow"],
+  tools:["VSM / flow analysis","Line Balancing","Kaizen"],
+  check:["Cycle time of the suspected constraint and its neighbors","How long material sits in the buffer","Whether the pileup happens every shift"]},
+ {id:"changeover", title:"Shorten changeovers", sig:["co1","co2","co3","co4"], cats:["co"],
+  tools:["SMED","Standard Work","5S"],
+  check:["Time several changeovers from last good piece to first good piece","How many changeovers happen per shift","Which setup steps could be done while the line runs"]},
+ {id:"org", title:"Organize work areas to cut searching and clutter", sig:["5s1","5s2","5s3","5s4","co2","mot2"], cats:["5s"],
+  tools:["5S","Visual Management"],
+  check:["Time lost searching in a typical shift","Which items are used daily versus rarely","Cleaning routine and who owns it"]},
+ {id:"quality", title:"Reduce defects, downgrade, and rework", sig:["def1","def2","def3","rw1","rw2","qc1","qc2","qc3","op1"], cats:["def","rw","qc","op"],
+  tools:["Root Cause Analysis","Standard Work","Visual Management"],
+  check:["Grade or reject data by cause","Where in the process the defect is created","How machine settings are checked and recorded"]},
+ {id:"handling", title:"Simplify material handling and movement", sig:["mat1","mat2","mat3","mat4","mot1"], cats:["mat","motion"],
+  tools:["Material Flow","VSM / flow analysis","5S"],
+  check:["Trace one load from arrival to the next step: distance and number of touches","Loader or forklift trips per hour","Staging locations and the rules for using them"]},
+ {id:"method", title:"Standardize key work methods", sig:["sw1","sw2","sw3","sw4","co3"], cats:["sw"],
+  tools:["Standard Work","Kaizen","Visual Management"],
+  check:["Watch the same task done by two operators or shifts","Compare output or quality by shift","Existing instructions or training material"]},
+ {id:"visibility", title:"Make performance and problems visible", sig:["vm1","vm2","vm3","ci4","qc2"], cats:["vm"],
+  tools:["Visual Management","Kaizen"],
+  check:["What targets exist and who sees them","How problems are escalated today","What information supervisors check during a shift"]},
+ {id:"overprod", title:"Align production and inventory with demand", sig:["ovp1","ovp2","wip2"], cats:["ovp"],
+  tools:["VSM / flow analysis","Material Flow"],
+  check:["How the production schedule is set","Inventory levels by product over time","Lead time from log intake to shipment"]},
+ {id:"ergo", title:"Reduce manual handling strain", sig:["erg1","erg2","mot2"], cats:["erg"],
+  tools:["Kaizen","Standard Work","5S"],
+  check:["Frequency and weight of manual lifts","Operator comments on strain or fatigue","Injury or near miss records, if the plant shares them"]},
+ {id:"ci", title:"Build a routine for solving recurring problems", sig:["ci1","ci2","ci3","ci4"], cats:["ci"],
+  tools:["Kaizen","Root Cause Analysis"],
+  check:["How problems are discussed today (meetings, boards)","Recent improvements and who led them","Whether recurring problems are tracked"]}
+];
+
+const FREQ = [["","Frequency"],["1","Rare"],["2","Occasional"],["3","Frequent"],["4","Constant"]];
+const IMPACT = [["","Impact"],["1","Low"],["2","Medium"],["3","High"]];
+const SOURCES = ["Direct observation","Operator","Supervisor","Existing report","System","Estimate"];
+const PROC_COLS = [
+ ["name","Process","text"],["ct","Cycle time (s)","num"],["ops","Operators","num"],["wipB","WIP before","num"],["wipA","WIP after","num"],
+ ["wait","Waiting (min)","num"],["co","Changeover (min)","num"],["down","Downtime (min)","num"],["planned","Time observed (min)","num"],
+ ["out","Output","num"],["scrap","Scrap","num"],["rework","Rework","num"],["batch","Batch size","num"],["other","Other measure","text"],["src","Data source","src"]
+];
+const VISIT_FIELDS = [
+ ["plant","Plant","text"],["date","Date","date"],["time","Time","time"],["location","Location","text"],
+ ["areas","Areas visited","text"],["with","People accompanying me","text"],["interviewed","People interviewed (roles)","text"],
+ ["shift","Shift","text"],["status","Production status during visit","select",["","Running normally","Reduced rate","Down or partially down","Changeover in progress","Maintenance day","Unknown"]],
+ ["conditions","Weather or operating conditions","text"],["unusual","Unusual conditions","textarea"]
+];
+
+/* ---------- state ---------- */
+const LS_KEY = "sawmill-diagnostic-v1";
+const blank = () => ({visit:{}, obs:{}, procs:[], interviews:[], photos:[], starred:[], oppNotes:{}, updatedAt:0});
+let state = blank();
+try{ const raw = localStorage.getItem(LS_KEY); if(raw){ state = Object.assign(blank(), JSON.parse(raw)); } }catch(e){}
+
+const uid = () => Math.random().toString(36).slice(2,9);
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num = v => (v===""||v==null||isNaN(+v)) ? null : +v;
+const obsOf = id => state.obs[id] || (state.obs[id] = {status:"", signals:[], location:"", desc:"", freq:"", impact:"", src:{seen:true,people:false,data:false}, photo:"", follow:false});
+
+/* ---------- saving ---------- */
+let dbDoc = null, saveTimer = null, saving = Promise.resolve();
+const statusEl = document.getElementById("saveStatus");
+function persist(){
+  state.updatedAt = Date.now();
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
+  if(dbDoc){
+    statusEl.textContent = "Saving...";
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(()=>{
+      const snapshot = JSON.parse(JSON.stringify(state));
+      saving = saving.then(()=>dbDoc.set({json: JSON.stringify(snapshot), updatedAt: snapshot.updatedAt}))
+        .then(()=>{ statusEl.textContent = "Saved to your Claude account"; })
+        .catch(()=>{ statusEl.textContent = "Saved on this device only"; });
+    }, 1200);
+  }
+  updateCounts();
+}
+(async function connect(){
+  if(!(window.claude && typeof window.claude.use === "function")) return;
+  try{
+    const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+    if(!db || !user) return;
+    const id = await user.id();
+    if(!id) return;
+    dbDoc = db.collection("data/users/" + id).doc("visit");
+    const snap = await dbDoc.get();
+    if(snap.exists){
+      const d = snap.data();
+      if(d && d.json && (d.updatedAt||0) > (state.updatedAt||0)){
+        state = Object.assign(blank(), JSON.parse(d.json));
+        try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){}
+        renderAll();
+      }
+    }
+    statusEl.textContent = "Saved to your Claude account";
+    if(!snap.exists && state.updatedAt) persist();
+  }catch(e){ dbDoc = null; }
+})();
+
+/* ---------- tabs ---------- */
+document.getElementById("tabs").addEventListener("click", e=>{
+  const b = e.target.closest(".tab"); if(!b) return;
+  document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected", t===b ? "true":"false"));
+  document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("on", p.id === "p-" + b.dataset.tab));
+  if(b.dataset.tab === "analyze") renderAnalysis();
+  window.scrollTo(0,0);
+});
+
+/* ---------- visit ---------- */
+function renderVisit(){
+  const el = document.getElementById("visitFields");
+  el.innerHTML = VISIT_FIELDS.map(([k,l,t,opts])=>{
+    const v = esc(state.visit[k]);
+    let input;
+    if(t==="select") input = `<select data-visit="${k}">${opts.map(o=>`<option ${o===state.visit[k]?"selected":""} value="${esc(o)}">${o||"Select"}</option>`).join("")}</select>`;
+    else if(t==="textarea") input = `<textarea data-visit="${k}">${v}</textarea>`;
+    else input = `<input type="${t}" data-visit="${k}" value="${v}" ${k==="plant"?'placeholder="Leave blank until confirmed"':""}>`;
+    return `<label class="f" ${t==="textarea"?'style="grid-column:1/-1"':""}>${l}${input}</label>`;
+  }).join("");
+  document.getElementById("plantLabel").textContent = state.visit.plant ? state.visit.plant : "";
+}
+document.getElementById("visitFields").addEventListener("input", e=>{
+  const k = e.target.dataset.visit; if(!k) return;
+  state.visit[k] = e.target.value;
+  if(k==="plant") document.getElementById("plantLabel").textContent = e.target.value;
+  persist();
+});
+
+/* ---------- plant walk ---------- */
+function catHTML(c){
+  const o = state.obs[c.id] || {status:""};
+  const st = o.status || "";
+  const seg = ["yes","no","unclear"].map(v=>`<button type="button" data-v="${v}" aria-pressed="${st===v}">${v==="yes"?"Yes":v==="no"?"No":"Unclear"}</button>`).join("");
+  let body = "";
+  if(st==="yes" || st==="unclear"){
+    const ob = obsOf(c.id);
+    body = `<div class="cat-body">
+      <div class="sublabel">What did you see or hear?</div>
+      <div class="checks">${c.sig.map(([sid,t])=>`<label class="chk"><input type="checkbox" data-sig="${sid}" ${ob.signals.includes(sid)?"checked":""}><span>${esc(t)}</span></label>`).join("")}</div>
+      <div class="grid">
+        <label class="f">Location<input type="text" data-o="location" value="${esc(ob.location)}"></label>
+        <label class="f">Frequency<select data-o="freq">${FREQ.map(([v,l])=>`<option value="${v}" ${ob.freq===v?"selected":""}>${v?l:"Select"}</option>`).join("")}</select></label>
+        <label class="f">Potential impact<select data-o="impact">${IMPACT.map(([v,l])=>`<option value="${v}" ${ob.impact===v?"selected":""}>${v?l:"Select"}</option>`).join("")}</select></label>
+        <label class="f">Photo reference<input type="text" data-o="photo" value="${esc(ob.photo)}" placeholder="e.g. 12, 13"></label>
+        <label class="f" style="grid-column:1/-1">Description<textarea data-o="desc">${esc(ob.desc)}</textarea></label>
+      </div>
+      <div class="sublabel">Evidence for this area</div>
+      <div class="chips">
+        <button type="button" class="chip" data-src="seen" aria-pressed="${!!ob.src.seen}">I observed it</button>
+        <button type="button" class="chip" data-src="people" aria-pressed="${!!ob.src.people}">People told me</button>
+        <button type="button" class="chip" data-src="data" aria-pressed="${!!ob.src.data}">Data shows it</button>
+        <button type="button" class="chip" data-o-toggle="follow" aria-pressed="${!!ob.follow}">Follow up needed</button>
+      </div>
+    </div>`;
+  }
+  return `<div class="cat" data-cat="${c.id}" data-status="${st}">
+    <div class="cat-head"><h3>${esc(c.name)}</h3><div class="seg" role="group" aria-label="Observed?">${seg}</div></div>${body}</div>`;
+}
+function renderWalk(){ document.getElementById("cats").innerHTML = CATS.map(catHTML).join(""); }
+function rerenderCat(id){
+  const el = document.querySelector(`.cat[data-cat="${id}"]`);
+  el.outerHTML = catHTML(CAT[id]);
+}
+const catsEl = document.getElementById("cats");
+catsEl.addEventListener("click", e=>{
+  const catEl = e.target.closest(".cat"); if(!catEl) return;
+  const id = catEl.dataset.cat;
+  const segBtn = e.target.closest(".seg button");
+  if(segBtn){
+    const ob = obsOf(id);
+    ob.status = ob.status === segBtn.dataset.v ? "" : segBtn.dataset.v;
+    persist(); rerenderCat(id); return;
+  }
+  const chip = e.target.closest(".chip");
+  if(chip){
+    const ob = obsOf(id);
+    if(chip.dataset.src){ ob.src[chip.dataset.src] = !ob.src[chip.dataset.src]; chip.setAttribute("aria-pressed", ob.src[chip.dataset.src]); }
+    else { ob.follow = !ob.follow; chip.setAttribute("aria-pressed", ob.follow); }
+    persist();
+  }
+});
+catsEl.addEventListener("change", e=>{
+  const catEl = e.target.closest(".cat"); if(!catEl) return;
+  const ob = obsOf(catEl.dataset.cat);
+  if(e.target.dataset.sig){
+    const s = e.target.dataset.sig;
+    ob.signals = e.target.checked ? [...new Set([...ob.signals, s])] : ob.signals.filter(x=>x!==s);
+    persist();
+  }
+});
+catsEl.addEventListener("input", e=>{
+  const catEl = e.target.closest(".cat"); if(!catEl) return;
+  const k = e.target.dataset.o; if(!k) return;
+  obsOf(catEl.dataset.cat)[k] = e.target.value; persist();
+});
+
+/* ---------- process data ---------- */
+function renderProcs(){
+  const t = document.getElementById("procTable");
+  const head = `<tr>${PROC_COLS.map(c=>`<th>${c[1]}</th>`).join("")}<th></th></tr>`;
+  const rows = state.procs.map((p,i)=>`<tr data-i="${i}">${PROC_COLS.map(([k,,ty])=>{
+      if(ty==="src") return `<td><select data-p="${k}"><option value="">Select</option>${SOURCES.map(s=>`<option ${p[k]===s?"selected":""}>${s}</option>`).join("")}</select></td>`;
+      return `<td class="${ty==="num"?"num":""}"><input ${ty==="num"?'type="number" inputmode="decimal" step="any"':'type="text"'} data-p="${k}" value="${esc(p[k])}" aria-label="${k}"></td>`;
+    }).join("")}
+    <td><div class="rowbtns"><button class="iconbtn" data-move="-1" aria-label="Move up">&uarr;</button><button class="iconbtn" data-move="1" aria-label="Move down">&darr;</button><button class="iconbtn" data-del aria-label="Remove">&times;</button></div></td></tr>`).join("");
+  t.innerHTML = head + (rows || `<tr><td colspan="${PROC_COLS.length+1}" class="hint">No processes yet. Add one for each step you can measure, in flow order.</td></tr>`);
+}
+const procT = document.getElementById("procTable");
+procT.addEventListener("input", e=>{
+  const tr = e.target.closest("tr[data-i]"); const k = e.target.dataset.p; if(!tr||!k) return;
+  state.procs[+tr.dataset.i][k] = e.target.value; persist();
+});
+procT.addEventListener("click", e=>{
+  const tr = e.target.closest("tr[data-i]"); if(!tr) return; const i = +tr.dataset.i;
+  if(e.target.closest("[data-del]")){ if(confirm("Remove this process row?")){ state.procs.splice(i,1); persist(); renderProcs(); } }
+  const mv = e.target.closest("[data-move]");
+  if(mv){ const j = i + +mv.dataset.move; if(j<0||j>=state.procs.length) return;
+    [state.procs[i],state.procs[j]] = [state.procs[j],state.procs[i]]; persist(); renderProcs(); }
+});
+
+/* ---------- people and photos ---------- */
+const catOptions = sel => `<option value="">Area</option>${CATS.map(c=>`<option value="${c.id}" ${sel===c.id?"selected":""}>${esc(c.name)}</option>`).join("")}`;
+function renderPeople(){
+  const it = document.getElementById("intTable");
+  it.innerHTML = `<tr><th>Role</th><th>Linked area</th><th>What they said</th><th></th></tr>` +
+    (state.interviews.map((r,i)=>`<tr data-list="interviews" data-i="${i}">
+      <td><input type="text" data-f="role" value="${esc(r.role)}" placeholder="Operator, supervisor..."></td>
+      <td><select data-f="cat">${catOptions(r.cat)}</select></td>
+      <td><textarea data-f="note">${esc(r.note)}</textarea></td>
+      <td><button class="iconbtn" data-del aria-label="Remove">&times;</button></td></tr>`).join("") ||
+     `<tr><td colspan="4" class="hint">No notes yet.</td></tr>`);
+  const pt = document.getElementById("photoTable");
+  pt.innerHTML = `<tr><th>Photo no.</th><th>Location</th><th>Linked area</th><th>What it shows</th><th></th></tr>` +
+    (state.photos.map((r,i)=>`<tr data-list="photos" data-i="${i}">
+      <td><input type="text" data-f="num" value="${esc(r.num)}" style="width:80px"></td>
+      <td><input type="text" data-f="loc" value="${esc(r.loc)}"></td>
+      <td><select data-f="cat">${catOptions(r.cat)}</select></td>
+      <td><input type="text" data-f="note" value="${esc(r.note)}"></td>
+      <td><button class="iconbtn" data-del aria-label="Remove">&times;</button></td></tr>`).join("") ||
+     `<tr><td colspan="5" class="hint">No photos logged yet.</td></tr>`);
+}
+const peopleEl = document.getElementById("p-people");
+peopleEl.addEventListener("input", e=>{
+  const tr = e.target.closest("tr[data-list]"); const f = e.target.dataset.f; if(!tr||!f) return;
+  state[tr.dataset.list][+tr.dataset.i][f] = e.target.value; persist();
+});
+peopleEl.addEventListener("click", e=>{
+  const tr = e.target.closest("tr[data-list]");
+  if(tr && e.target.closest("[data-del]")){ if(confirm("Remove this entry?")){ state[tr.dataset.list].splice(+tr.dataset.i,1); persist(); renderPeople(); } }
+});
+
+/* ---------- analysis engine ---------- */
+function measureHits(){
+  const hits = {};
+  const add = (opp, msg) => (hits[opp] = hits[opp] || []).push(msg);
+  const P = state.procs.map(p=>({...p, _ct:num(p.ct)}));
+  P.forEach(p=>{
+    const nm = p.name || "unnamed process";
+    const down = num(p.down), planned = num(p.planned), co = num(p.co), wait = num(p.wait);
+    const out = num(p.out), scrap = num(p.scrap), rw = num(p.rework);
+    if(down!=null && planned) { const r = down/planned; if(r>=0.10) add("downtime", `${nm}: downtime ${(r*100).toFixed(0)}% of observed time`); }
+    if(co!=null && co>=15) add("changeover", `${nm}: changeover ${co} min`);
+    if(wait!=null && wait>=10) add("flow", `${nm}: waiting ${wait} min`);
+    if(out!=null && out>0){
+      if(scrap!=null && scrap/(out+scrap)>=0.03) add("quality", `${nm}: scrap ${(scrap/(out+scrap)*100).toFixed(1)}% of output`);
+      if(rw!=null && rw/out>=0.03) add("quality", `${nm}: rework ${(rw/out*100).toFixed(1)}% of output`);
+    }
+  });
+  for(let i=0;i<P.length;i++){
+    const a = P[i]._ct; if(a==null) continue;
+    const nb = [P[i-1],P[i+1]].filter(x=>x && x._ct!=null && x._ct>0);
+    nb.forEach(n=>{ if(a/n._ct>=1.3) add("flow", `${P[i].name||"unnamed"}: cycle time ${a}s vs ${n._ct}s at ${n.name||"neighbor"}`); });
+  }
+  const withWip = P.filter(p=>num(p.wipB)!=null);
+  if(withWip.length>=2){
+    const top = withWip.reduce((m,p)=>num(p.wipB)>num(m.wipB)?p:m);
+    const slow = P.filter(p=>p._ct!=null).reduce((m,p)=>(!m||p._ct>m._ct)?p:m, null);
+    if(slow && top===slow) add("flow", `Largest WIP sits in front of the slowest step (${slow.name||"unnamed"})`);
+  }
+  return hits;
+}
+
+function analyze(){
+  const mh = measureHits();
+  const results = OPPS.map(o=>{
+    const matched = [];
+    let score = 0, seen=false, people=false, data=false;
+    const catsInvolved = new Set();
+    CATS.forEach(c=>{
+      const ob = state.obs[c.id]; if(!ob || ob.status!=="yes") return;
+      const sigs = ob.signals.filter(s=>o.sig.includes(s));
+      if(!sigs.length) return;
+      catsInvolved.add(c.id);
+      const imp = +ob.impact || 2, fr = +ob.freq || 2;
+      score += imp*fr + (sigs.length-1);
+      sigs.forEach(s=>matched.push({text:SIG[s].text, cat:c.name, loc:ob.location, photo:ob.photo}));
+      if(ob.src.seen) seen = true;
+      if(ob.src.people) people = true;
+      if(ob.src.data) data = true;
+    });
+    const ints = state.interviews.filter(r=>r.cat && (catsInvolved.has(r.cat) || o.cats.includes(r.cat)) && (r.note||"").trim());
+    if(ints.length){ people = true; score += Math.min(ints.length,3)*2; }
+    const dh = mh[o.id] || [];
+    if(dh.length){ data = true; score += Math.min(dh.length,2)*4; }
+    const photos = state.photos.filter(p=>p.cat && catsInvolved.has(p.cat));
+    const n = (seen?1:0)+(people?1:0)+(data?1:0);
+    if(!matched.length && !dh.length && !ints.length) return null;
+    score *= n>=3 ? 1.3 : n===2 ? 1 : 0.7;
+    return {o, matched, ints, dh, photos, seen, people, data, n, score:Math.round(score*10)/10};
+  }).filter(Boolean).sort((a,b)=>b.score-a.score);
+  const linked = new Set(OPPS.flatMap(o=>o.sig));
+  const unlinked = CATS.filter(c=>{ const ob=state.obs[c.id]; return ob && ob.status==="yes" && !(ob.signals||[]).some(s=>linked.has(s)); });
+  const unclear = CATS.filter(c=>state.obs[c.id] && state.obs[c.id].status==="unclear");
+  const safety = !!(state.obs.erg && state.obs.erg.status && (state.obs.erg.signals||[]).includes("erg3"));
+  return {results, unlinked, unclear, safety};
+}
+
+function triSVG(r){
+  const on = "var(--accent)", off = "var(--field)", stroke = "var(--muted)";
+  const lab = (x,y,v,t) => `<text x="${x}" y="${y}" font-size="7.5" text-anchor="middle" fill="${v?"var(--accent-ink)":"var(--muted)"}" font-family="Archivo,Arial,sans-serif" font-weight="600">${t}</text>`;
+  return `<svg width="64" height="58" viewBox="0 0 56 50" role="img" aria-label="Observation ${r.seen?"yes":"no"}, People ${r.people?"yes":"no"}, Data ${r.data?"yes":"no"}">
+    <path d="M28 9 L9 41 L47 41 Z" fill="none" stroke="var(--rule)" stroke-width="1.5"/>
+    <circle cx="28" cy="9" r="7" fill="${r.seen?on:off}" stroke="${r.seen?on:stroke}"/>
+    <circle cx="9" cy="41" r="7" fill="${r.people?on:off}" stroke="${r.people?on:stroke}"/>
+    <circle cx="47" cy="41" r="7" fill="${r.data?on:off}" stroke="${r.data?on:stroke}"/>
+    ${lab(28,11.7,r.seen,"O")}${lab(9,43.7,r.people,"P")}${lab(47,43.7,r.data,"D")}</svg>`;
+}
+const strengthLabel = n => n>=3 ? ["s3","Triangulated: observation, people, and data agree"] : n===2 ? ["s2","Supported by two sources"] : ["s1","Single source: validate before selecting"];
+
+function renderAnalysis(){
+  const {results, unlinked, unclear, safety} = analyze();
+  document.getElementById("safety").innerHTML = safety ? `<div class="notice"><strong>Safety concern logged.</strong> Raise it with your plant contact directly. Safety issues are handled on their own terms, not as a Lean tool selection.</div>` : "";
+  const max = results.length ? results[0].score : 1;
+  const el = document.getElementById("opps");
+  if(!results.length){
+    el.innerHTML = `<div class="empty">No opportunities yet. Mark areas as observed in Plant walk and check what you saw, or add process data. Opportunities appear here as evidence comes in.</div>`;
+  } else {
+    el.innerHTML = results.map(r=>{
+      const [cls,lab] = strengthLabel(r.n);
+      const starred = state.starred.includes(r.o.id);
+      const missing = [!r.seen&&"direct observation", !r.people&&"input from people", !r.data&&"data"].filter(Boolean);
+      return `<article class="opp" data-opp="${r.o.id}">
+        <div class="rank">${results.indexOf(r)+1}</div>
+        <div class="main">
+          <h3>${esc(r.o.title)}</h3>
+          <p class="strength ${cls}">${lab}</p>
+          <p class="methods">Methods to consider: <b>${r.o.tools.map(esc).join(", ")}</b></p>
+          <div class="weight" title="Relative weight of your entries"><span class="bar"><i style="width:${Math.max(6,Math.round(r.score/max*100))}%"></i></span>Relative weight of entries</div>
+          <details ${results.indexOf(r)===0?"open":""}>
+            <summary>Why this appears</summary>
+            <ul>
+              ${r.matched.map(m=>`<li>${esc(m.text)} <span class="hint">(${esc(m.cat)}${m.loc?", "+esc(m.loc):""}${m.photo?", photo "+esc(m.photo):""})</span></li>`).join("")}
+              ${r.dh.map(d=>`<li>Data: ${esc(d)}</li>`).join("")}
+              ${r.ints.map(i=>`<li>${esc(i.role||"Someone")} said: ${esc(i.note)}</li>`).join("")}
+              ${r.photos.length?`<li>Photos: ${r.photos.map(p=>esc(p.num||"?")).join(", ")}</li>`:""}
+            </ul>
+            ${missing.length?`<p class="hint" style="margin:4px 0 8px">Missing evidence: ${missing.join(", ")}.</p>`:""}
+            <div class="sublabel">Check before selecting</div>
+            <ul>${r.o.check.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>
+            <label class="f">Your notes<textarea data-oppnote>${esc(state.oppNotes[r.o.id]||"")}</textarea></label>
+          </details>
+          <button class="star" data-star aria-pressed="${starred}">Mark as candidate</button>
+        </div>
+        <div class="tri">${triSVG(r)}<small>${r.n} of 3 sources</small></div>
+      </article>`;
+    }).join("");
+  }
+  let extra = "";
+  if(unlinked.length) extra += `<div class="block after"><h3>Observed but not linked to a pattern</h3><p class="hint">Areas marked Yes without a checked item. Review the description; they may point to something the patterns above do not cover.</p><ul>${unlinked.map(c=>`<li>${esc(c.name)}${state.obs[c.id].desc?": "+esc(state.obs[c.id].desc):""}</li>`).join("")}</ul></div>`;
+  if(unclear.length) extra += `<div class="block ${unlinked.length?"":"after"}"><h3>Marked unclear</h3><p class="hint">Worth a follow up question or a second look.</p><ul>${unclear.map(c=>`<li>${esc(c.name)}</li>`).join("")}</ul></div>`;
+  document.getElementById("unlinked").innerHTML = extra;
+  document.getElementById("nOpps").textContent = results.length;
+}
+const oppsEl = document.getElementById("opps");
+oppsEl.addEventListener("click", e=>{
+  const b = e.target.closest("[data-star]"); if(!b) return;
+  const id = b.closest(".opp").dataset.opp;
+  state.starred = state.starred.includes(id) ? state.starred.filter(x=>x!==id) : [...state.starred, id];
+  const on = state.starred.includes(id);
+  b.setAttribute("aria-pressed", on);
+  persist();
+});
+oppsEl.addEventListener("input", e=>{
+  if(!e.target.matches("[data-oppnote]")) return;
+  state.oppNotes[e.target.closest(".opp").dataset.opp] = e.target.value; persist();
+});
+
+/* ---------- counts ---------- */
+function updateCounts(){
+  document.getElementById("nWalk").textContent = CATS.filter(c=>state.obs[c.id] && state.obs[c.id].status).length + "/" + CATS.length;
+  document.getElementById("nMeasure").textContent = state.procs.length;
+  document.getElementById("nPeople").textContent = state.interviews.length + state.photos.length;
+  document.getElementById("nOpps").textContent = analyze().results.length;
+}
+
+/* ---------- report ---------- */
+function reportText(){
+  const {results, unlinked, unclear, safety} = analyze();
+  const v = state.visit, L = [];
+  L.push(`# Plant diagnostic report${v.plant?": "+v.plant:""}`, "");
+  L.push("## Visit");
+  VISIT_FIELDS.forEach(([k,l])=>{ if(v[k]) L.push(`- ${l}: ${v[k]}`); });
+  L.push("", "## Observations");
+  CATS.forEach(c=>{ const o = state.obs[c.id]; if(!o||!o.status) return;
+    L.push(`### ${c.name}: ${o.status}`);
+    o.signals.forEach(s=>L.push(`- ${SIG[s].text}`));
+    const meta = [o.location&&`Location: ${o.location}`, o.freq&&`Frequency: ${FREQ.find(f=>f[0]===o.freq)[1]}`, o.impact&&`Impact: ${IMPACT.find(f=>f[0]===o.impact)[1]}`, o.photo&&`Photos: ${o.photo}`, o.follow&&"Follow up needed"].filter(Boolean);
+    if(meta.length) L.push(`- ${meta.join("; ")}`);
+    const src = [o.src.seen&&"observed", o.src.people&&"people", o.src.data&&"data"].filter(Boolean);
+    if(src.length) L.push(`- Evidence: ${src.join(", ")}`);
+    if(o.desc) L.push(`- Notes: ${o.desc}`);
+    L.push("");
+  });
+  if(state.procs.length){
+    L.push("## Process data", "", "| " + PROC_COLS.map(c=>c[1]).join(" | ") + " |", "|" + PROC_COLS.map(()=>"---").join("|") + "|");
+    state.procs.forEach(p=>L.push("| " + PROC_COLS.map(([k])=>String(p[k]||"").replace(/\|/g,"/")).join(" | ") + " |"));
+    L.push("");
+  }
+  if(state.interviews.length){ L.push("## Interview notes"); state.interviews.forEach(r=>L.push(`- ${r.role||"Unspecified role"}${r.cat?" ("+CAT[r.cat].name+")":""}: ${r.note||""}`)); L.push(""); }
+  if(state.photos.length){ L.push("## Photo log"); state.photos.forEach(r=>L.push(`- ${r.num||"?"}: ${r.loc||""}${r.cat?" ("+CAT[r.cat].name+")":""} ${r.note||""}`)); L.push(""); }
+  L.push("## Possible opportunities (generated from entries; not conclusions)");
+  if(safety) L.push("", "Note: a safety concern was logged and should be raised with the plant directly.");
+  results.forEach(r=>{
+    L.push("", `### ${r.o.title}${state.starred.includes(r.o.id)?" (candidate)":""}`);
+    L.push(`- Evidence sources: ${[r.seen&&"observation",r.people&&"people",r.data&&"data"].filter(Boolean).join(", ")} (${r.n} of 3)`);
+    L.push(`- Methods to consider: ${r.o.tools.join(", ")}`);
+    r.matched.forEach(m=>L.push(`- Seen: ${m.text} (${m.cat}${m.loc?", "+m.loc:""})`));
+    r.dh.forEach(d=>L.push(`- Data: ${d}`));
+    r.ints.forEach(i=>L.push(`- ${i.role||"Someone"} said: ${i.note}`));
+    L.push(`- Check before selecting: ${r.o.check.join("; ")}`);
+    if(state.oppNotes[r.o.id]) L.push(`- Notes: ${state.oppNotes[r.o.id]}`);
+  });
+  if(!results.length) L.push("", "None yet.");
+  if(unlinked.length) L.push("", "## Observed but not linked to a pattern", ...unlinked.map(c=>`- ${c.name}`));
+  if(unclear.length) L.push("", "## Marked unclear", ...unclear.map(c=>`- ${c.name}`));
+  return L.join("\n");
+}
+function obsCSV(){
+  const q = s => `"${String(s==null?"":s).replace(/"/g,'""')}"`;
+  const rows = [["Area","Observed","Items","Location","Frequency","Impact","Observed it","People","Data","Photo","Follow up","Description"]];
+  CATS.forEach(c=>{ const o = state.obs[c.id]; if(!o||!o.status) return;
+    rows.push([c.name,o.status,o.signals.map(s=>SIG[s].text).join("; "),o.location,(FREQ.find(f=>f[0]===o.freq)||["",""])[1],(IMPACT.find(f=>f[0]===o.impact)||["",""])[1],o.src.seen?"yes":"",o.src.people?"yes":"",o.src.data?"yes":"",o.photo,o.follow?"yes":"",o.desc]); });
+  return rows.map(r=>r.map(q).join(",")).join("\n");
+}
+
+/* ---------- downloads, toast ---------- */
+let downloads = null;
+if(window.claude && typeof window.claude.use === "function"){
+  window.claude.use("downloads").then(d=>{ downloads = d; }).catch(()=>{});
+}
+function toast(msg){ const t = document.getElementById("toast"); t.textContent = msg; t.classList.remove("hidden"); clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.add("hidden"), 2600); }
+async function offer(filename, data){
+  if(!downloads){ showCopy(data); toast("Download is not available here. The text is shown below to copy."); return; }
+  try{ const r = await downloads.save({filename, data}); if(r.status==="saved") toast("Saved " + filename); }
+  catch(e){ if(e && e.code==="declined") return; showCopy(data); toast("Could not save the file. The text is shown below to copy."); }
+}
+function showCopy(text){
+  document.querySelector('.tab[data-tab="analyze"]').click();
+  const a = document.getElementById("copyArea"); a.value = text; a.classList.remove("hidden"); a.focus(); a.select();
+}
+const stamp = () => (state.visit.date || new Date().toISOString().slice(0,10));
+
+/* ---------- Claude review ---------- */
+let sample = null, aiCtl = null;
+if(window.claude && typeof window.claude.use === "function"){
+  window.claude.use("sample").then(s=>{ sample = s; if(!s) document.getElementById("aiCard").classList.add("hidden"); }).catch(()=>document.getElementById("aiCard").classList.add("hidden"));
+} else { document.getElementById("aiCard").classList.add("hidden"); }
+async function runAI(){
+  if(!sample) return;
+  const out = document.getElementById("aiOut"), btn = document.getElementById("aiBtn"), stop = document.getElementById("aiStop");
+  out.classList.remove("hidden"); out.textContent = "Thinking...";
+  btn.disabled = true; stop.classList.remove("hidden");
+  aiCtl = new AbortController();
+  const prompt = `You are reviewing field notes from a Lean and continuous improvement diagnostic visit at a sawmill. The researcher wants the evidence, not a preselected tool, to drive the choice of improvement project.
+
+Rules:
+- Use only the information in the notes below. Do not invent plant facts, numbers, or causes.
+- Distinguish clearly between what is supported by more than one evidence source (observation, people, data) and what rests on a single source.
+- Do not recommend a Lean tool as a conclusion; say which methods could fit a problem if it is confirmed.
+- Write in plain academic English. Do not use hyphens. Keep it under 450 words.
+
+Structure your answer as:
+1. Strongest candidate opportunity and why the evidence supports it
+2. Other leads and what evidence is missing for each
+3. Gaps or inconsistencies in the notes
+4. The three most useful things to check or measure next
+
+NOTES:
+${reportText()}`;
+  try{
+    const res = await sample(prompt, {signal: aiCtl.signal, onText: ({text})=>{ out.textContent = text; }});
+    out.textContent = res.text + (res.truncated ? "\n\n(Response was cut short.)" : "");
+  }catch(e){
+    if(e && e.code==="cancelled") out.textContent += "\n\n(Stopped.)";
+    else if(e && e.code==="not_granted"){ out.textContent = "Claude review was not allowed in this view."; }
+    else if(e && e.code==="rate_limited"){ out.textContent = "Too many requests right now. Try again in a minute."; }
+    else out.textContent = (e && e.text) ? e.text : "The review could not be completed. Try again later.";
+  }finally{ btn.disabled = false; stop.classList.add("hidden"); aiCtl = null; }
+}
+
+/* ---------- global actions ---------- */
+document.addEventListener("click", e=>{
+  const b = e.target.closest("[data-act]"); if(!b) return;
+  const act = b.dataset.act;
+  if(act==="addProc"){ state.procs.push({id:uid()}); persist(); renderProcs(); const r = procT.querySelectorAll("tr[data-i]"); r[r.length-1].querySelector("input").focus(); }
+  if(act==="addInt"){ state.interviews.push({id:uid()}); persist(); renderPeople(); }
+  if(act==="addPhoto"){ const n = state.photos.length+1; state.photos.push({id:uid(), num:String(n)}); persist(); renderPeople(); }
+  if(act==="exportMd") offer(`plant-diagnostic-${stamp()}.md`, reportText());
+  if(act==="exportCsv") offer(`observations-${stamp()}.csv`, obsCSV());
+  if(act==="exportJson") offer(`plant-diagnostic-data-${stamp()}.json`, JSON.stringify(state, null, 2));
+  if(act==="copyReport"){
+    const text = reportText();
+    (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(text) : Promise.reject())
+      .then(()=>toast("Report copied")).catch(()=>{ showCopy(text); toast("Select the text below and copy it."); });
+  }
+  if(act==="importJson") document.getElementById("importFile").click();
+  if(act==="newVisit"){
+    if(confirm("Start a new visit? This clears the current entries from the tool. Export first if you want a copy.")){
+      state = blank(); persist(); renderAll(); toast("New visit started");
+    }
+  }
+  if(act==="ai") runAI();
+  if(act==="aiStop" && aiCtl) aiCtl.abort();
+});
+document.getElementById("importFile").addEventListener("change", e=>{
+  const f = e.target.files[0]; if(!f) return;
+  f.text().then(t=>{
+    const d = JSON.parse(t);
+    if(!d || typeof d!=="object" || !("obs" in d)) throw new Error("bad");
+    state = Object.assign(blank(), d); persist(); renderAll(); toast("Visit data imported");
+  }).catch(()=>toast("That file is not a visit export from this tool.")).finally(()=>{ e.target.value=""; });
+});
+
+function renderAll(){ renderVisit(); renderWalk(); renderProcs(); renderPeople(); renderAnalysis(); updateCounts(); }
+renderAll();
+})();
+</script>
+</body>
+</html>
