@@ -174,13 +174,23 @@ td.hint{padding:18px 0}
 .ins:hover{border-color:var(--ink); color:var(--ink)}
 
 /* opportunities: ranked ledger */
-.opp{display:grid; grid-template-columns:2.2rem minmax(0,1fr) 5.5rem; gap:0 16px; padding:20px 0 22px; border-bottom:1px solid var(--rule)}
+.opp{display:grid; grid-template-columns:minmax(0,1fr) 5.5rem; gap:0 16px; padding:20px 0 22px; border-bottom:1px solid var(--rule)}
 #opps{border-top:1px solid var(--rule-strong)}
 .rank{font-size:1.6rem; font-weight:300; color:var(--muted); line-height:1; padding-top:2px}
 .opp:last-child{border-bottom:0}
 .opp h3{font-size:1.2rem; font-weight:650; margin-bottom:4px}
 .strength{font-size:.86rem; font-weight:600; margin:0 0 12px}
-.s3{color:var(--good)} .s2{color:var(--ink)} .s1{color:var(--accent-text)}
+.s3{color:var(--good)} .s2{color:var(--ink)} .s1,.s0{color:var(--accent-text)}
+.effectline{font-size:.9rem; margin:0 0 12px}
+.bucket{margin-top:26px}
+.bucket:first-child{margin-top:0}
+.bucket-h{font-size:1.15rem; margin:0 0 2px}
+.bucket-h .n{font-weight:400; color:var(--muted); font-size:.9rem; margin-left:6px}
+.bucket > .hint{margin:0 0 10px}
+.bucket .opp{border-top:1px solid var(--rule)}
+.mapmeta{margin-bottom:8px}
+.mapmeta summary{font-size:.95rem; font-weight:650; padding:6px 0 10px}
+.tags .pace{color:var(--ink)}
 .weight{display:flex; align-items:center; gap:10px; font-size:.78rem; color:var(--muted); margin-bottom:12px}
 .bar{flex:0 1 180px; height:3px; background:var(--tint)}
 .bar i{display:block; height:100%; background:var(--ink)}
@@ -223,12 +233,11 @@ details[open] summary{margin-bottom:4px}
   .cat-headrow,.cat-head{grid-template-columns:1.6rem minmax(0,1fr) 10.5rem; gap:8px}
   .seg button{min-width:0; padding:6px 9px; font-size:.84rem}
   .cat-body{padding-left:0}
-  .opp{grid-template-columns:1.6rem minmax(0,1fr); }
-  .opp .tri{grid-column:2; grid-row:1; justify-self:start; display:flex; align-items:center; gap:8px; margin-bottom:8px}
+  .opp{grid-template-columns:1fr}
+  .opp .tri{grid-column:1; grid-row:1; justify-self:start; display:flex; align-items:center; gap:8px; margin-bottom:8px}
   .opp .tri small{margin:0; text-align:left}
-  .opp .rank{grid-row:1 / span 2}
+  .opp .main{grid-column:1; grid-row:2}
 }
-@media (max-width:560px){ .opp .main{grid-column:2; grid-row:2} }
 </style>
 </head>
 <body>
@@ -254,6 +263,15 @@ details[open] summary{margin-bottom:4px}
     <div class="lede"><h2>Visit</h2><p class="intro">Record the basics first. Everything saves as you type. Fill in only what you can; empty fields are fine.</p></div>
     <div class="work">
       <div class="block"><div class="grid" id="visitFields"></div></div>
+      <div class="block" id="promptBlock">
+        <h3>Ask first, before using the checklist</h3>
+        <p class="hint">Ask these unprompted and write the answers in their words. They are shown next to the opportunities at the end so you can check whether the checklist found what people already know.</p>
+        <div class="grid">
+          <label class="f">What are the top 2 or 3 things that cost production or money here?<textarea data-prompt="losses"></textarea></label>
+          <label class="f">How is what to run next decided, and how does each station find out?<textarea data-prompt="sched"></textarea></label>
+          <label class="f">The last time the line stopped: what happened?<textarea data-prompt="laststop"></textarea></label>
+        </div>
+      </div>
       <div class="block">
         <h3>Visit file</h3>
         <p class="hint">Export a copy for your records or start a new visit. Starting a new visit clears this one from the tool.</p>
@@ -270,29 +288,37 @@ details[open] summary{margin-bottom:4px}
 
   <!-- WALK -->
   <section class="panel" id="p-walk" role="tabpanel">
-    <div class="lede"><h2>Plant walk</h2><p class="intro">Ten categories that are easy to see on a walk. For each one, mark whether you observed an issue. Choose Yes to open quick details. Check only what you actually saw or were told; these are areas to look at, not assumed problems.</p></div>
+    <div class="lede"><h2>Plant walk</h2><p class="intro">Ten categories that are easy to see on a walk. For each one, mark whether you observed an issue. Choose Yes to open quick details. Check only what you actually saw or were told, and tick an evidence source only if it applies; nothing is pre-ticked. These are areas to look at, not assumed problems.</p></div>
     <div class="work"><div class="cat-headrow"><span>#</span><span>Category</span><span>Issue observed?</span></div><div id="cats"></div></div>
   </section>
 
   <!-- MEASURE -->
   <section class="panel" id="p-measure" role="tabpanel">
-    <div class="lede"><h2>Process map</h2><p class="intro">Name each main step in the order material flows. Open More details to add cycle time, WIP before, changeover, or notes. Everything except the name is optional. The flow chart at the bottom updates as you go.</p></div>
+    <div class="lede"><h2>Process map</h2><p class="intro">Name each main step in the order material flows. Open More details for the usual VSM data box items: unit, cycle time, operators, WIP before, changeover, and EPE. Everything except the name is optional. Map details (demand, shifts, available time, pace) are entered once per map so a VSM can be built after the visit.</p></div>
     <div class="work">
     <div class="maptabs" id="mapTabs" role="tablist" aria-label="Product or service process maps"></div>
     <div class="addmenu hidden" id="addMenu"></div>
     <div class="mapbar"><label class="f">Name of this product or service<input type="text" id="mapName"></label><button type="button" class="btn danger hidden" id="delMap" data-act="delMap">Delete this map</button></div>
+    <details class="mapmeta block" id="mapMeta" open><summary>Map details for the VSM (optional)</summary><div class="grid">
+      <label class="f">Customer demand (with unit and period)<input type="text" data-mm="demand" placeholder="e.g. 40 MBF per day"></label>
+      <label class="f">Shifts per day<input type="number" inputmode="decimal" step="any" min="0" data-mm="shifts"></label>
+      <label class="f">Available time per shift (minutes)<input type="number" inputmode="decimal" step="any" min="0" data-mm="avail"></label>
+      <label class="f">Where the numbers on this map came from<select data-mm="numSrc"><option value="">Select</option><option value="measured">Measured by me</option><option value="records">Plant records or system</option><option value="told">Told by plant staff</option><option value="mixed">Mixed or estimated</option></select></label>
+      <label class="f">Step that sets the pace<select data-mm="paceId" id="paceSel"></select></label>
+      <label class="f">How do you know it sets the pace?<input type="text" data-mm="paceWhy"></label>
+    </div></details>
     <div class="block"><div class="flow" id="flow"></div>
     <div class="actions"><button class="btn" data-act="addProc">Add step</button></div></div>
     <div class="block"><h3>Picture of a drawn process map</h3><p class="hint">Add a photo or image of a map drawn on paper or in another app. It is kept with this process map.</p>
       <div class="actions"><button type="button" class="btn alt" id="addPicBtn" data-act="addPic">Add picture</button><button type="button" class="btn danger hidden" id="rmPic" data-act="rmPic">Remove picture</button></div>
       <input type="file" id="picFile" accept="image/*" class="hidden"><div id="picBox"></div></div>
-    <div class="block"><h3>Flow chart</h3><p class="hint">Built from the steps above, in order. An orange outline marks a step with a much longer cycle time than its neighbor, or the largest queue in front of the slowest step.</p><div class="chartwrap" id="chart"></div><p class="total" id="totalTime"></p></div>
+    <div class="block"><h3>Flow chart</h3><p class="hint">Built from the steps above, in order. An orange outline marks a step with a much longer cycle time than its neighbor, or the largest queue in front of the slowest step, only when the steps use the same unit. A dark outline marks the step you said sets the pace.</p><div class="chartwrap" id="chart"></div><p class="total" id="totalTime"></p></div>
     </div>
   </section>
 
   <!-- PEOPLE -->
   <section class="panel" id="p-people" role="tabpanel">
-    <div class="lede"><h2>People and photos</h2><p class="intro">Log what operators and supervisors tell you, and link each note to the area it concerns. Linked notes count as People evidence in the analysis.</p></div>
+    <div class="lede"><h2>People and photos</h2><p class="intro">Log what operators and supervisors tell you, and link each note to the area it concerns. Linked notes count as People evidence in the analysis. The photo log is a list only: take photos with your phone camera, then record them here.</p></div>
     <div class="work">
     <div class="block">
       <h3>Interview notes</h3>
@@ -301,6 +327,7 @@ details[open] summary{margin-bottom:4px}
     </div>
     <div class="block">
       <h3>Photo log</h3>
+      <p class="hint">This is a log, not an upload. Take the photo with your camera, then record its number, where it was taken, and what it shows. Use the same number in Photo reference on the Plant walk.</p>
       <div class="scroll"><table id="photoTable"></table></div>
       <div class="actions"><button class="btn" data-act="addPhoto">Add photo</button></div>
     </div>
@@ -309,9 +336,10 @@ details[open] summary{margin-bottom:4px}
 
   <!-- ANALYZE -->
   <section class="panel" id="p-analyze" role="tabpanel">
-    <div class="lede"><h2>Opportunities</h2><p class="intro">Possible opportunities based only on what you entered. Each one shows which evidence sources support it: Observation, People, and Data. Treat single source items as leads to validate, not conclusions. The method list shows options to consider, not a decision.</p></div>
+    <div class="lede"><h2>Opportunities</h2><p class="intro">Possible opportunities based only on what you entered. Each one shows two separate things: the evidence behind it (Observation, People, Data) and its effect on the line. Strong evidence of a small effect and thin evidence of a large one are not the same, so they are grouped differently. Treat single source items as leads to validate, not conclusions.</p></div>
     <div class="work">
     <div id="safety"></div>
+    <div id="unprompted"></div>
     <div id="opps"></div>
     <div id="unlinked"></div>
     <div class="block after" id="aiCard">
@@ -388,9 +416,17 @@ const OPPS = [
   check:["Frequency and weight of manual lifts","Operator comments on strain or fatigue","Injury or near miss records, if the plant shares them"]}
 ];
 
-const FREQ = [["","Frequency"],["1","Rare"],["2","Occasional"],["3","Frequent"],["4","Constant"]];
-const IMPACT = [["","Impact"],["1","Low"],["2","Medium"],["3","High"]];
-const PROC_FIELDS = [["name","Step"],["ct","Cycle time (s)"],["wipB","WIP before"],["coS","Changeover time (s)"],["epe","EPE"],["note","Notes"]];
+const EFFECT = [["","Not rated"],["stop","Stopped or starved the line"],["slow","Slowed the line"],["local","Local only, no effect on the line seen"]];
+const EFFECT_RANK = {stop:3, slow:2, local:1};
+const EFFECT_LEAD = {3:"High", 2:"Medium", 1:"Low", 0:"Not rated"};
+const BUCKETS = [
+ ["pursue","Pursue and quantify","High effect, supported by two or more source types. Quantify the loss and decide what to investigate."],
+ ["verify","Verify first","High effect but thin evidence. Get data or a second source before spending time here."],
+ ["record","Record, possible quick win","Supported by two or more source types, but the effect is moderate, low, or not rated."],
+ ["park","Park for now","Thin evidence and not rated high. Keep it on the list and revisit if new evidence appears."]
+];
+const NUMSRC_DATA = {measured:1, records:1};
+const PROC_FIELDS = [["name","Step"],["unit","Unit"],["ct","Cycle time (s per unit)"],["ops","Operators"],["wipB","WIP before"],["coS","Changeover time (s)"],["epe","EPE"],["note","Notes"]];
 const fmtSec = t => { const r = Math.round(t*10)/10; if(r<60) return r+" s"; const m = Math.floor(r/60), sec = Math.round((r-m*60)*10)/10; return `${m} min${sec?" "+sec+" s":""} (${r} s)`; };
 const VISIT_FIELDS = [
  ["plant","Plant","text"],["date","Date","date"],["time","Time","time"],["location","Location","text"],
@@ -403,7 +439,7 @@ const VISIT_FIELDS = [
 /* ---------- state ---------- */
 const LS_KEY = "sawmill-diagnostic-v1";
 const uid = () => Math.random().toString(36).slice(2,9);
-const blank = () => ({visit:{}, obs:{}, maps:[{id:uid(), name:"Product/service 1", procs:[], img:""}], activeMap:0, interviews:[], photos:[], starred:[], oppNotes:{}, updatedAt:0});
+const blank = () => ({visit:{}, obs:{}, maps:[{id:uid(), name:"Product/service 1", procs:[], img:"", demand:"", shifts:"", avail:"", numSrc:"", paceId:"", paceWhy:""}], activeMap:0, prompts:{losses:"",sched:"",laststop:""}, interviews:[], photos:[], starred:[], oppNotes:{}, updatedAt:0});
 let state = blank();
 function clean(d){
   const st = Object.assign(blank(), d);
@@ -411,7 +447,8 @@ function clean(d){
   [st.interviews, st.photos].forEach(l=>l.forEach(r=>{ if(r.cat && !CAT[r.cat]) r.cat = ""; }));
   if(!Array.isArray(st.maps) || !st.maps.length) st.maps = [{id:uid(), name:"Product/service 1", procs:Array.isArray(d.procs)?d.procs:[], img:""}];
   delete st.procs;
-  st.maps.forEach((m,i)=>{ m.procs = m.procs||[]; m.name = m.name||`Product/service ${i+1}`; m.img = m.img||""; });
+  st.maps.forEach((m,i)=>{ m.procs = m.procs||[]; m.name = m.name||`Product/service ${i+1}`; m.img = m.img||""; ["demand","shifts","avail","numSrc","paceId","paceWhy"].forEach(k=>{ if(m[k]==null) m[k] = ""; }); });
+  st.prompts = Object.assign({losses:"",sched:"",laststop:""}, st.prompts||{});
   if(!(st.activeMap>=0 && st.activeMap<st.maps.length)) st.activeMap = 0;
   return st;
 }
@@ -421,7 +458,7 @@ const PR = () => curMap().procs;
 
 const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num = v => (v===""||v==null||isNaN(+v)) ? null : +v;
-const obsOf = id => state.obs[id] || (state.obs[id] = {status:"", signals:[], location:"", desc:"", freq:"", impact:"", src:{seen:true,people:false,data:false}, photo:"", follow:false, otherOn:false, otherText:""});
+const obsOf = id => state.obs[id] || (state.obs[id] = {status:"", signals:[], location:"", desc:"", effect:"", src:{seen:false,people:false,data:false}, dataNote:"", photo:"", follow:false, otherOn:false, otherText:""});
 try{ const raw = localStorage.getItem(LS_KEY); if(raw){ state = clean(JSON.parse(raw)); } }catch(e){}
 
 /* ---------- saving ---------- */
@@ -477,6 +514,8 @@ document.getElementById("tabs").addEventListener("click", e=>{
 });
 
 /* ---------- visit ---------- */
+function renderPrompts(){ document.querySelectorAll("[data-prompt]").forEach(t=>{ t.value = state.prompts[t.dataset.prompt] || ""; }); }
+document.getElementById("promptBlock").addEventListener("input", e=>{ const k = e.target.dataset.prompt; if(!k) return; state.prompts[k] = e.target.value; persist(); });
 function renderVisit(){
   const el = document.getElementById("visitFields");
   el.innerHTML = VISIT_FIELDS.map(([k,l,t,opts])=>{
@@ -512,8 +551,7 @@ function catHTML(c){
       ${ob.otherOn?`<label class="f" style="margin-bottom:14px">Explain what you saw or heard<input type="text" data-o="otherText" value="${esc(ob.otherText)}"></label>`:""}
       <div class="grid">
         <label class="f">Location<input type="text" data-o="location" value="${esc(ob.location)}"></label>
-        <label class="f">Frequency<select data-o="freq">${FREQ.map(([v,l])=>`<option value="${v}" ${ob.freq===v?"selected":""}>${v?l:"Select"}</option>`).join("")}</select></label>
-        <label class="f">Potential impact<select data-o="impact">${IMPACT.map(([v,l])=>`<option value="${v}" ${ob.impact===v?"selected":""}>${v?l:"Select"}</option>`).join("")}</select></label>
+        <label class="f">Effect on the line<select data-o="effect">${EFFECT.map(([v,l])=>`<option value="${v}" ${ob.effect===v?"selected":""}>${l}</option>`).join("")}</select></label>
         <label class="f">Photo reference<input type="text" data-o="photo" value="${esc(ob.photo)}" placeholder="e.g. 12, 13"></label>
         <label class="f" style="grid-column:1/-1">Description<textarea data-o="desc">${esc(ob.desc)}</textarea></label>
       </div>
@@ -521,9 +559,10 @@ function catHTML(c){
       <div class="chips">
         <button type="button" class="chip" data-src="seen" aria-pressed="${!!ob.src.seen}">I observed it</button>
         <button type="button" class="chip" data-src="people" aria-pressed="${!!ob.src.people}">People told me</button>
-        <button type="button" class="chip" data-src="data" aria-pressed="${!!ob.src.data}">Data shows it</button>
+        <button type="button" class="chip" data-src="data" aria-pressed="${!!ob.src.data}">Data or a document shows it</button>
         <button type="button" class="chip" data-o-toggle="follow" aria-pressed="${!!ob.follow}">Follow up needed</button>
       </div>
+      ${ob.src.data?`<label class="f" style="margin-top:8px">What data or document? Write the number or the report name. Data without this is not counted.<input type="text" data-o="dataNote" value="${esc(ob.dataNote)}" placeholder="e.g. downtime log, 14 stops last week"></label>`:""}
     </div>`;
   }
   return `<div class="cat" data-cat="${c.id}" data-status="${st}">
@@ -547,7 +586,8 @@ catsEl.addEventListener("click", e=>{
   const chip = e.target.closest(".chip");
   if(chip){
     const ob = obsOf(id);
-    if(chip.dataset.src){ ob.src[chip.dataset.src] = !ob.src[chip.dataset.src]; chip.setAttribute("aria-pressed", ob.src[chip.dataset.src]); }
+    if(chip.dataset.src){ ob.src[chip.dataset.src] = !ob.src[chip.dataset.src]; chip.setAttribute("aria-pressed", ob.src[chip.dataset.src]);
+      if(chip.dataset.src==="data"){ persist(); rerenderCat(id); if(ob.src.data){ const t = document.querySelector(`.cat[data-cat="${id}"] [data-o="dataNote"]`); if(t) t.focus(); } return; } }
     else { ob.follow = !ob.follow; chip.setAttribute("aria-pressed", ob.follow); }
     persist();
   }
@@ -576,12 +616,14 @@ catsEl.addEventListener("input", e=>{
 const flowEl = document.getElementById("flow");
 const ARROW = `<svg width="28" height="14" viewBox="0 0 28 14" aria-hidden="true"><path d="M0 7h24M18 1l7 6-7 6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`;
 function stepHTML(p,i,n){
-  const more = p.ct||p.wipB||p.coS||p.epe||p.note;
+  const more = p.unit||p.ct||p.ops||p.wipB||p.coS||p.epe||p.note;
   return `<div class="unit"><div class="step" data-i="${i}">
     <div class="step-top"><span class="step-n">${i+1}</span><input type="text" data-p="name" value="${esc(p.name)}" placeholder="Process name" aria-label="Step ${i+1} name"></div>
     <details ${more?"open":""}><summary>More details</summary><div class="mini2">
-      <label class="f">Cycle time (seconds)<input type="number" inputmode="decimal" step="any" min="0" data-p="ct" value="${esc(p.ct)}"></label>
-      <label class="f">WIP before<input type="number" inputmode="decimal" step="any" min="0" data-p="wipB" value="${esc(p.wipB)}"></label>
+      <label class="f">Unit processed<input type="text" data-p="unit" value="${esc(p.unit)}" placeholder="log, board, bundle"></label>
+      <label class="f">Operators<input type="number" inputmode="decimal" step="any" min="0" data-p="ops" value="${esc(p.ops)}"></label>
+      <label class="f">Cycle time (seconds per unit)<input type="number" inputmode="decimal" step="any" min="0" data-p="ct" value="${esc(p.ct)}"></label>
+      <label class="f">WIP before (units)<input type="number" inputmode="decimal" step="any" min="0" data-p="wipB" value="${esc(p.wipB)}"></label>
       <label class="f">Changeover time (seconds)<input type="number" inputmode="decimal" step="any" min="0" data-p="coS" value="${esc(p.coS)}"></label>
       <label class="f">Every Part Every (EPE)<input type="text" data-p="epe" value="${esc(p.epe)}" placeholder="e.g. 2 days"></label>
       <label class="f wide">Notes<textarea data-p="note">${esc(p.note)}</textarea></label></div></details>
@@ -590,10 +632,16 @@ function stepHTML(p,i,n){
   </div>` + (i<n-1 ? `<div class="link">${ARROW}<button type="button" class="ins" data-ins="${i}" aria-label="Insert a step after step ${i+1}" title="Insert a step here">+</button></div>`
     : `<div class="link">${ARROW}</div><button type="button" class="addbox" data-act="addProc">+ Add step</button>`) + `</div>`;
 }
+function renderPaceSelect(){
+  const m = curMap(), sel = document.getElementById("paceSel");
+  sel.innerHTML = `<option value="">Not identified</option>` + m.procs.map((p,i)=>`<option value="${esc(p.id)}" ${m.paceId===p.id?"selected":""}>${i+1}. ${esc(p.name||"Step "+(i+1))}</option>`).join("");
+}
 function renderMapUI(){
   document.getElementById("mapTabs").innerHTML = state.maps.map((m,i)=>`<button type="button" class="mtab" role="tab" data-map="${i}" aria-selected="${i===state.activeMap}" title="${esc(m.name)}">${esc(m.name)}</button>`).join("") + `<button type="button" class="mtab plus" data-act="toggleAddMenu" aria-label="Add another process map" title="Add another process map">+</button>`;
   document.getElementById("mapName").value = curMap().name;
   document.getElementById("delMap").classList.toggle("hidden", state.maps.length<2);
+  document.querySelectorAll("[data-mm]").forEach(el=>{ if(el.id!=="paceSel") el.value = curMap()[el.dataset.mm] || ""; });
+  renderPaceSelect();
   renderPic();
 }
 function renderPic(){
@@ -615,7 +663,11 @@ function loadImage(file){
 }
 function newMap(kind){
   const n = state.maps.length+1, src = kind==="blank" ? null : state.maps[+kind];
-  state.maps.push(src ? {id:uid(), name:`${src.name} (copy)`, procs:src.procs.map(p=>({...p,id:uid()})), img:""} : {id:uid(), name:`Product/service ${n}`, procs:[], img:""});
+  const meta = {demand:"", shifts:"", avail:"", numSrc:"", paceId:"", paceWhy:""};
+  if(src){
+    const ids = {}, procs = src.procs.map(p=>{ const q = {...p, id:uid()}; ids[p.id] = q.id; return q; });
+    state.maps.push({...meta, demand:src.demand, shifts:src.shifts, avail:src.avail, numSrc:src.numSrc, paceId:ids[src.paceId]||"", paceWhy:src.paceWhy, id:uid(), name:`${src.name} (copy)`, procs, img:""});
+  } else state.maps.push({...meta, id:uid(), name:`Product/service ${n}`, procs:[], img:""});
   state.activeMap = state.maps.length-1;
   document.getElementById("addMenu").classList.add("hidden");
   persist(); renderProcs(); const nm = document.getElementById("mapName"); nm.focus(); nm.select();
@@ -638,6 +690,10 @@ document.getElementById("mapName").addEventListener("input", e=>{
   const t = document.querySelector(`#mapTabs [data-map="${state.activeMap}"]`); if(t){ t.textContent = e.target.value || `Product/service ${state.activeMap+1}`; t.title = t.textContent; }
   persist();
 });
+document.getElementById("mapMeta").addEventListener("input", e=>{
+  const k = e.target.dataset.mm; if(!k) return;
+  curMap()[k] = e.target.value; persist(); if(k==="paceId") paintFlags();
+});
 document.getElementById("mapName").addEventListener("change", e=>{ if(!e.target.value.trim()){ curMap().name = `Product/service ${state.activeMap+1}`; renderMapUI(); persist(); } });
 document.getElementById("picFile").addEventListener("change", e=>{
   const f = e.target.files[0]; if(!f) return;
@@ -650,22 +706,35 @@ function renderProcs(){
   flowEl.innerHTML = n ? PR().map((p,i)=>stepHTML(p,i,n)).join("") : `<div class="empty" style="border-top:0">No steps yet. Add the main steps in the order material flows, then fill in only what you can get quickly.</div>`;
   paintFlags();
 }
+const unitOf = p => (p.unit||"").trim().toLowerCase();
 function procFindings(P = PR()){
   const out = [];
   const nm = i => P[i].name || `Step ${i+1}`;
   const add = (i,opp,tag,msg)=>out.push({i,opp,tag,msg});
-  const ct = P.map(p=>num(p.ct));
+  const ct = P.map(p=>num(p.ct)), un = P.map(unitOf);
+  /* comparisons are only made between steps that count the same unit */
   P.forEach((p,i)=>{
-    if(ct[i]==null) return;
-    [i-1,i+1].forEach(j=>{ if(ct[j]>0 && ct[i]/ct[j]>=1.3) add(i,"flow","Slower than neighbor",`${nm(i)}: cycle time ${ct[i]}s vs ${ct[j]}s at ${nm(j)}`); });
+    if(ct[i]==null || !un[i]) return;
+    [i-1,i+1].forEach(j=>{ if(un[j]===un[i] && ct[j]>0 && ct[i]/ct[j]>=1.3) add(i,"flow","Slower than neighbor",`${nm(i)}: cycle time ${ct[i]}s vs ${ct[j]}s at ${nm(j)} (per ${un[i]})`); });
   });
-  const q = P.map((p,i)=>[i,num(p.wipB)]).filter(x=>x[1]!=null);
-  const timed = ct.map((c,i)=>[i,c]).filter(x=>x[1]!=null);
-  if(q.length>=2 && timed.length){
-    const top = q.reduce((m,x)=>x[1]>m[1]?x:m), slow = timed.reduce((m,x)=>x[1]>m[1]?x:m);
-    if(top[1]>0 && top[0]===slow[0]) add(top[0],"flow","Largest queue, slowest step",`Largest WIP sits in front of the slowest step (${nm(slow[0])})`);
-  }
+  new Set(un.filter(Boolean)).forEach(u=>{
+    const idx = P.map((p,i)=>i).filter(i=>un[i]===u);
+    const q = idx.filter(i=>num(P[i].wipB)!=null), timed = idx.filter(i=>ct[i]!=null);
+    if(q.length>=2 && timed.length){
+      const top = q.reduce((m,i)=>num(P[i].wipB)>num(P[m].wipB)?i:m), slow = timed.reduce((m,i)=>ct[i]>ct[m]?i:m);
+      if(num(P[top].wipB)>0 && top===slow) add(top,"flow","Largest queue, slowest step",`Largest WIP sits in front of the slowest step (${nm(slow)}, per ${u})`);
+    }
+  });
   return out;
+}
+function unitSummary(){
+  const P = PR(), timed = P.filter(p=>num(p.ct)!=null);
+  if(!timed.length) return `<span class="hint">Cycle times appear here once you enter them.</span>`;
+  const units = new Set(timed.map(unitOf));
+  if(timed.length>=2 && (units.size>1 || units.has("")))
+    return `<span class="hint">Cycle times are not compared or added across steps with different or missing units (log, board, bundle...). Convert to a common unit when you build the VSM.</span>`;
+  const sum = timed.reduce((a,p)=>a+num(p.ct),0), u = [...units][0];
+  return `Sum of cycle times: <b>${fmtSec(sum)}</b>${u?" per "+esc(u):""} <span class="hint">(${timed.length} of ${P.length} steps have one; waiting time is not included, so this is not lead time)</span>`;
 }
 /* flow chart drawn from the steps */
 function wrapName(t,max){
@@ -678,7 +747,7 @@ function wrapName(t,max){
   return out;
 }
 function renderChart(){
-  const el = document.getElementById("chart"), P = PR();
+  const el = document.getElementById("chart"), P = PR(), m = curMap();
   if(!P.length){ el.innerHTML = `<p class="hint">Add steps above and the flow chart appears here.</p>`; return; }
   const W = Math.max(el.clientWidth||640, 220), bw = 176, bh = 78, gx = 44, gy = 48, pad = 6;
   const cols = Math.max(1, Math.min(10, Math.floor((W - pad*2 + gx)/(bw+gx))));
@@ -688,13 +757,15 @@ function renderChart(){
   const flagged = new Set(procFindings().map(f=>f.i));
   let g = "";
   P.forEach((p,i)=>{
-    const {x,y} = pos(i), fl = flagged.has(i);
+    const {x,y} = pos(i), fl = flagged.has(i), pace = m.paceId && m.paceId===p.id;
     const lines = wrapName(p.name || `Step ${i+1}`, 22);
-    const det = [num(p.ct)!=null&&`Cycle ${num(p.ct)} s`, num(p.wipB)!=null&&`WIP ${num(p.wipB)}`].filter(Boolean).join("   ");
-    g += `<g><rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="2" fill="var(--field)" stroke="${fl?"var(--accent)":"var(--rule-strong)"}" stroke-width="${fl?2.5:1.25}"/>
+    const u = (p.unit||"").trim().slice(0,8);
+    const det = [num(p.ct)!=null&&`C/T ${num(p.ct)} s${u?"/"+u:""}`, num(p.wipB)!=null&&`WIP ${num(p.wipB)}`].filter(Boolean).join("   ");
+    g += `<g><rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="2" fill="var(--field)" stroke="${fl?"var(--accent)":"var(--rule-strong)"}" stroke-width="${fl?2.5:pace?2.5:1.25}"/>
       <text x="${x+8}" y="${y+15}" font-size="11" fill="var(--muted)" font-weight="650">${i+1}</text>
+      ${pace?`<text x="${x+bw-8}" y="${y+15}" font-size="10.5" text-anchor="end" fill="var(--ink)" font-weight="700">SETS THE PACE</text>`:""}
       ${lines.map((l,k)=>`<text x="${x+bw/2}" y="${y+(lines.length>1?33:40)+k*17}" font-size="14" text-anchor="middle" fill="var(--ink)" font-weight="600">${esc(l)}</text>`).join("")}
-      ${det?`<text x="${x+bw/2}" y="${y+bh-9}" font-size="11.5" text-anchor="middle" fill="var(--muted)">${esc(det)}</text>`:""}</g>`;
+      ${det?`<text x="${x+bw/2}" y="${y+bh-9}" font-size="11" text-anchor="middle" fill="var(--muted)">${esc(det)}</text>`:""}</g>`;
     if(i<P.length-1){
       const n = pos(i+1);
       g += n.y===y
@@ -707,15 +778,16 @@ function renderChart(){
 let chartT = null;
 window.addEventListener("resize", ()=>{ clearTimeout(chartT); chartT = setTimeout(renderChart, 150); });
 function paintFlags(){
-  const f = procFindings();
+  const f = procFindings(), m = curMap();
   flowEl.querySelectorAll(".step").forEach(el=>{
-    const tags = [...new Set(f.filter(x=>x.i===+el.dataset.i).map(x=>x.tag))];
+    const i = +el.dataset.i, p = PR()[i];
+    const tags = [...new Set(f.filter(x=>x.i===i).map(x=>x.tag))];
     el.classList.toggle("flag", tags.length>0);
-    el.querySelector(".tags").innerHTML = tags.map(t=>`<span>${esc(t)}</span>`).join("");
+    el.querySelector(".tags").innerHTML = (m.paceId && m.paceId===p.id ? `<span class="pace">Sets the pace</span>` : "") + tags.map(t=>`<span>${esc(t)}</span>`).join("");
   });
+  if(document.activeElement && document.activeElement.id!=="paceSel") renderPaceSelect();
   renderChart();
-  const cts = PR().map(p=>num(p.ct)).filter(x=>x!=null), tot = document.getElementById("totalTime");
-  tot.innerHTML = cts.length ? `Total processing time: <b>${fmtSec(cts.reduce((a,b)=>a+b,0))}</b> <span class="hint">(sum of cycle times, ${cts.length} of ${PR().length} steps have one)</span>` : `<span class="hint">Total processing time appears here once you enter cycle times.</span>`;
+  document.getElementById("totalTime").innerHTML = unitSummary();
 }
 flowEl.addEventListener("input", e=>{
   const st = e.target.closest(".step"); const k = e.target.dataset.p; if(!st||!k) return;
@@ -771,40 +843,43 @@ peopleEl.addEventListener("click", e=>{
 });
 
 /* ---------- analysis engine ---------- */
-function measureHits(){
+function mapHits(){
   const hits = {};
-  state.maps.forEach(m=>procFindings(m.procs).forEach(f=>(hits[f.opp] = hits[f.opp] || []).push((state.maps.length>1 ? m.name+": " : "")+f.msg)));
+  state.maps.forEach(m=>procFindings(m.procs).forEach(f=>{
+    (hits[f.opp] = hits[f.opp] || []).push({msg:(state.maps.length>1 ? m.name+": " : "")+f.msg, counts:!!NUMSRC_DATA[m.numSrc]});
+  }));
   return hits;
 }
 
 function analyze(){
-  const mh = measureHits();
-  const results = OPPS.map(o=>{
-    const matched = [];
-    let score = 0, seen=false, people=false, data=false;
+  const mh = mapHits();
+  const results = OPPS.map((o,oi)=>{
+    const matched = [], dataNotes = [], dataMissing = [];
+    let seen=false, people=false, data=false, eff=0;
     const catsInvolved = new Set();
     CATS.forEach(c=>{
       const ob = state.obs[c.id]; if(!ob || ob.status!=="yes") return;
       const sigs = ob.signals.filter(s=>o.sig.includes(s));
       if(!sigs.length) return;
       catsInvolved.add(c.id);
-      const imp = +ob.impact || 2, fr = +ob.freq || 2;
-      score += imp*fr + (sigs.length-1);
       sigs.forEach(s=>matched.push({text:SIG[s].text, cat:c.name, loc:ob.location, photo:ob.photo}));
       if(ob.src.seen) seen = true;
       if(ob.src.people) people = true;
-      if(ob.src.data) data = true;
+      if(ob.src.data){ if((ob.dataNote||"").trim()){ data = true; dataNotes.push({cat:c.name, note:ob.dataNote.trim()}); } else dataMissing.push(c.name); }
+      eff = Math.max(eff, EFFECT_RANK[ob.effect]||0);
     });
     const ints = state.interviews.filter(r=>r.cat && (catsInvolved.has(r.cat) || o.cats.includes(r.cat)) && (r.note||"").trim());
-    if(ints.length){ people = true; score += Math.min(ints.length,3)*2; }
+    if(ints.length) people = true;
     const dh = mh[o.id] || [];
-    if(dh.length){ data = true; score += Math.min(dh.length,2)*4; }
+    if(dh.some(d=>d.counts)) data = true;
     const photos = state.photos.filter(p=>p.cat && catsInvolved.has(p.cat));
     const n = (seen?1:0)+(people?1:0)+(data?1:0);
     if(!matched.length && !dh.length && !ints.length) return null;
-    score *= n>=3 ? 1.3 : n===2 ? 1 : 0.7;
-    return {o, matched, ints, dh, photos, seen, people, data, n, score:Math.round(score*10)/10};
-  }).filter(Boolean).sort((a,b)=>b.score-a.score);
+    const high = eff===3, strong = n>=2;
+    return {o, oi, matched, ints, dh, dataNotes, dataMissing, photos, seen, people, data, n, eff, bucket: high ? (strong?"pursue":"verify") : (strong?"record":"park")};
+  }).filter(Boolean);
+  const bo = id => BUCKETS.findIndex(b=>b[0]===id);
+  results.sort((a,b)=>bo(a.bucket)-bo(b.bucket) || b.n-a.n || b.eff-a.eff || a.oi-b.oi);
   const linked = new Set(OPPS.flatMap(o=>o.sig));
   const unlinked = CATS.filter(c=>{ const ob=state.obs[c.id]; return ob && ob.status==="yes" && !(ob.signals||[]).some(s=>linked.has(s)); });
   const unclear = CATS.filter(c=>state.obs[c.id] && state.obs[c.id].status==="unclear");
@@ -822,44 +897,52 @@ function triSVG(r){
     <circle cx="47" cy="41" r="7" fill="${r.data?on:off}" stroke="${r.data?on:stroke}"/>
     ${lab(28,11.7,r.seen,"O")}${lab(9,43.7,r.people,"P")}${lab(47,43.7,r.data,"D")}</svg>`;
 }
-const strengthLabel = n => n>=3 ? ["s3","Triangulated: observation, people, and data agree"] : n===2 ? ["s2","Supported by two sources"] : ["s1","Single source: validate before selecting"];
+const strengthLabel = n => n>=3 ? ["s3","Three source types present"] : n===2 ? ["s2","Two source types present"] : n===1 ? ["s1","Single source: validate before selecting"] : ["s0","No evidence source ticked yet"];
 
 function renderAnalysis(){
   const {results, unlinked, unclear, safety} = analyze();
   document.getElementById("safety").innerHTML = safety ? `<div class="notice"><strong>Safety concern logged.</strong> Raise it with your plant contact directly. Safety issues are handled on their own terms, not as a Lean tool selection.</div>` : "";
-  const max = results.length ? results[0].score : 1;
+  const P = state.prompts, said = [["Top losses people named, unprompted",P.losses],["Last time the line stopped",P.laststop],["How the next run is decided",P.sched]].filter(x=>(x[1]||"").trim());
+  document.getElementById("unprompted").innerHTML = said.length ? `<div class="block"><h3>What people said before the checklist</h3><p class="hint">Compare with the opportunities below. Anything people named that does not appear is a gap in the checklist, not in the plant.</p>${said.map(([l,t])=>`<p style="margin:8px 0 0"><b>${esc(l)}:</b> <span style="white-space:pre-wrap">${esc(t)}</span></p>`).join("")}</div>` : "";
   const el = document.getElementById("opps");
+  let first = true;
+  const card = r=>{
+    const [cls,lab] = strengthLabel(r.n);
+    const starred = state.starred.includes(r.o.id);
+    const missing = [!r.seen&&"direct observation", !r.people&&"input from people", !r.data&&"data"].filter(Boolean);
+    const open = first; first = false;
+    return `<article class="opp" data-opp="${r.o.id}">
+      <div class="main">
+        <h3>${esc(r.o.title)}</h3>
+        <p class="strength ${cls}">Evidence: ${lab}</p>
+        <p class="effectline">Effect on the line: <b>${EFFECT_LEAD[r.eff]}</b>${r.eff===0?` <span class="hint">(rate it in Plant walk to place this opportunity)</span>`:""}</p>
+        <p class="methods">Methods that could fit if confirmed: <b>${r.o.tools.map(esc).join(", ")}</b></p>
+        <details ${open?"open":""}>
+          <summary>Why this appears</summary>
+          <ul>
+            ${r.matched.map(m=>`<li>${esc(m.text)} <span class="hint">(${esc(m.cat)}${m.loc?", "+esc(m.loc):""}${m.photo?", photo "+esc(m.photo):""})</span></li>`).join("")}
+            ${r.dataNotes.map(d=>`<li>Data: ${esc(d.note)} <span class="hint">(${esc(d.cat)})</span></li>`).join("")}
+            ${r.dh.map(d=>`<li>Process map: ${esc(d.msg)} <span class="hint">${d.counts?"(counted as Data)":"(not counted as Data: mark the map numbers as measured or from plant records)"}</span></li>`).join("")}
+            ${r.ints.map(i=>`<li>${esc(i.role||"Someone")} said: ${esc(i.note)}</li>`).join("")}
+            ${r.photos.length?`<li>Photos: ${r.photos.map(p=>esc(p.num||"?")).join(", ")}</li>`:""}
+          </ul>
+          ${missing.length?`<p class="hint" style="margin:4px 0 8px">Missing evidence: ${missing.join(", ")}.</p>`:""}
+          ${r.dataMissing.length?`<p class="hint" style="margin:4px 0 8px">Data was ticked in ${r.dataMissing.map(esc).join(", ")} without naming the number or document, so it is not counted.</p>`:""}
+          <div class="sublabel">Check before selecting</div>
+          <ul>${r.o.check.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>
+          <label class="f">Your notes<textarea data-oppnote>${esc(state.oppNotes[r.o.id]||"")}</textarea></label>
+        </details>
+        <button class="star" data-star aria-pressed="${starred}">Mark as candidate</button>
+      </div>
+      <div class="tri">${triSVG(r)}<small>${r.n} of 3 source types</small></div>
+    </article>`;
+  };
   if(!results.length){
-    el.innerHTML = `<div class="empty">No opportunities yet. Mark areas as observed in Plant walk and check what you saw, or add process data. Opportunities appear here as evidence comes in.</div>`;
+    el.innerHTML = `<div class="empty">No opportunities yet. Mark areas as observed in Plant walk and check what you saw, or add a process map. Opportunities appear here as evidence comes in.</div>`;
   } else {
-    el.innerHTML = results.map(r=>{
-      const [cls,lab] = strengthLabel(r.n);
-      const starred = state.starred.includes(r.o.id);
-      const missing = [!r.seen&&"direct observation", !r.people&&"input from people", !r.data&&"data"].filter(Boolean);
-      return `<article class="opp" data-opp="${r.o.id}">
-        <div class="rank">${results.indexOf(r)+1}</div>
-        <div class="main">
-          <h3>${esc(r.o.title)}</h3>
-          <p class="strength ${cls}">${lab}</p>
-          <p class="methods">Methods to consider: <b>${r.o.tools.map(esc).join(", ")}</b></p>
-          <div class="weight" title="Relative weight of your entries"><span class="bar"><i style="width:${Math.max(6,Math.round(r.score/max*100))}%"></i></span>Relative weight of entries</div>
-          <details ${results.indexOf(r)===0?"open":""}>
-            <summary>Why this appears</summary>
-            <ul>
-              ${r.matched.map(m=>`<li>${esc(m.text)} <span class="hint">(${esc(m.cat)}${m.loc?", "+esc(m.loc):""}${m.photo?", photo "+esc(m.photo):""})</span></li>`).join("")}
-              ${r.dh.map(d=>`<li>Data: ${esc(d)}</li>`).join("")}
-              ${r.ints.map(i=>`<li>${esc(i.role||"Someone")} said: ${esc(i.note)}</li>`).join("")}
-              ${r.photos.length?`<li>Photos: ${r.photos.map(p=>esc(p.num||"?")).join(", ")}</li>`:""}
-            </ul>
-            ${missing.length?`<p class="hint" style="margin:4px 0 8px">Missing evidence: ${missing.join(", ")}.</p>`:""}
-            <div class="sublabel">Check before selecting</div>
-            <ul>${r.o.check.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>
-            <label class="f">Your notes<textarea data-oppnote>${esc(state.oppNotes[r.o.id]||"")}</textarea></label>
-          </details>
-          <button class="star" data-star aria-pressed="${starred}">Mark as candidate</button>
-        </div>
-        <div class="tri">${triSVG(r)}<small>${r.n} of 3 sources</small></div>
-      </article>`;
+    el.innerHTML = BUCKETS.map(([id,title,desc])=>{
+      const rs = results.filter(r=>r.bucket===id); if(!rs.length) return "";
+      return `<section class="bucket"><h3 class="bucket-h">${title}<span class="n">${rs.length}</span></h3><p class="hint">${desc}</p>${rs.map(card).join("")}</section>`;
     }).join("");
   }
   let extra = "";
@@ -897,14 +980,23 @@ function reportText(){
   L.push(`# Plant diagnostic report${v.plant?": "+v.plant:""}`, "");
   L.push("## Visit");
   VISIT_FIELDS.forEach(([k,l])=>{ if(v[k]) L.push(`- ${l}: ${v[k]}`); });
+  const P = state.prompts;
+  if([P.losses,P.sched,P.laststop].some(x=>(x||"").trim())){
+    L.push("", "## Asked first, before the checklist");
+    if(P.losses) L.push(`- Top losses named: ${P.losses}`);
+    if(P.laststop) L.push(`- Last time the line stopped: ${P.laststop}`);
+    if(P.sched) L.push(`- How the next run is decided: ${P.sched}`);
+  }
   L.push("", "## Observations");
   CATS.forEach(c=>{ const o = state.obs[c.id]; if(!o||!o.status) return;
     L.push(`### ${c.name}: ${o.status}`);
     o.signals.forEach(s=>L.push(`- ${SIG[s].text}`));
-    const meta = [o.location&&`Location: ${o.location}`, o.freq&&`Frequency: ${FREQ.find(f=>f[0]===o.freq)[1]}`, o.impact&&`Impact: ${IMPACT.find(f=>f[0]===o.impact)[1]}`, o.photo&&`Photos: ${o.photo}`, o.follow&&"Follow up needed"].filter(Boolean);
+    const eff = (EFFECT.find(f=>f[0]===o.effect)||["",""])[1];
+    const meta = [o.location&&`Location: ${o.location}`, o.effect&&`Effect on the line: ${eff}`, o.photo&&`Photos: ${o.photo}`, o.follow&&"Follow up needed"].filter(Boolean);
     if(meta.length) L.push(`- ${meta.join("; ")}`);
-    const src = [o.src.seen&&"observed", o.src.people&&"people", o.src.data&&"data"].filter(Boolean);
+    const src = [o.src.seen&&"observed", o.src.people&&"people", o.src.data&&"data or document"].filter(Boolean);
     if(src.length) L.push(`- Evidence: ${src.join(", ")}`);
+    if(o.src.data && o.dataNote) L.push(`- Data or document: ${o.dataNote}`);
     if(o.otherOn && o.otherText) L.push(`- Other: ${o.otherText}`);
     if(o.desc) L.push(`- Notes: ${o.desc}`);
     L.push("");
@@ -912,11 +1004,14 @@ function reportText(){
   state.maps.forEach(m=>{
     if(!m.procs.length && !m.img) return;
     L.push(`## Process map: ${m.name}`, "");
+    const NS = {measured:"measured by the investigator", records:"plant records or system", told:"told by plant staff", mixed:"mixed or estimated"};
+    const meta = [m.demand&&`Customer demand: ${m.demand}`, m.shifts&&`Shifts per day: ${m.shifts}`, m.avail&&`Available time per shift: ${m.avail} min`, m.numSrc&&`Numbers: ${NS[m.numSrc]}`].filter(Boolean);
+    if(meta.length) L.push(meta.join("; "), "");
+    const pace = m.procs.find(p=>p.id===m.paceId);
+    if(pace) L.push(`Step that sets the pace: ${pace.name||"unnamed"}${m.paceWhy?" (basis: "+m.paceWhy+")":""}`, "");
     if(m.img) L.push("A picture of a drawn process map is attached in the tool.", "");
     if(m.procs.length){
       L.push(m.procs.map((p,i)=>p.name||`Step ${i+1}`).join(" > "), "");
-      const cts = m.procs.map(p=>num(p.ct)).filter(x=>x!=null);
-      if(cts.length) L.push(`Total processing time (sum of cycle times): ${fmtSec(cts.reduce((a,b)=>a+b,0))}`, "");
       L.push("| " + PROC_FIELDS.map(c=>c[1]).join(" | ") + " |", "|" + PROC_FIELDS.map(()=>"---").join("|") + "|");
       m.procs.forEach((p,i)=>L.push("| " + PROC_FIELDS.map(([k])=>String(p[k]||(k==="name"?`Step ${i+1}`:"")).replace(/\|/g,"/").replace(/\n/g," ")).join(" | ") + " |"));
       L.push("");
@@ -928,10 +1023,13 @@ function reportText(){
   if(safety) L.push("", "Note: a safety concern was logged and should be raised with the plant directly.");
   results.forEach(r=>{
     L.push("", `### ${r.o.title}${state.starred.includes(r.o.id)?" (candidate)":""}`);
-    L.push(`- Evidence sources: ${[r.seen&&"observation",r.people&&"people",r.data&&"data"].filter(Boolean).join(", ")} (${r.n} of 3)`);
-    L.push(`- Methods to consider: ${r.o.tools.join(", ")}`);
+    L.push(`- Group: ${BUCKETS.find(b=>b[0]===r.bucket)[1]}`);
+    L.push(`- Evidence source types: ${[r.seen&&"observation",r.people&&"people",r.data&&"data"].filter(Boolean).join(", ")||"none ticked"} (${r.n} of 3)`);
+    L.push(`- Effect on the line: ${EFFECT_LEAD[r.eff]}`);
+    L.push(`- Methods that could fit if confirmed: ${r.o.tools.join(", ")}`);
     r.matched.forEach(m=>L.push(`- Seen: ${m.text} (${m.cat}${m.loc?", "+m.loc:""})`));
-    r.dh.forEach(d=>L.push(`- Data: ${d}`));
+    r.dataNotes.forEach(d=>L.push(`- Data: ${d.note} (${d.cat})`));
+    r.dh.forEach(d=>L.push(`- Process map: ${d.msg}${d.counts?"":" (not counted as Data)"}`));
     r.ints.forEach(i=>L.push(`- ${i.role||"Someone"} said: ${i.note}`));
     L.push(`- Check before selecting: ${r.o.check.join("; ")}`);
     if(state.oppNotes[r.o.id]) L.push(`- Notes: ${state.oppNotes[r.o.id]}`);
@@ -943,9 +1041,9 @@ function reportText(){
 }
 function obsCSV(){
   const q = s => `"${String(s==null?"":s).replace(/"/g,'""')}"`;
-  const rows = [["Area","Observed","Items","Location","Frequency","Impact","Observed it","People","Data","Photo","Follow up","Description"]];
+  const rows = [["Area","Observed","Items","Location","Effect on the line","Observed it","People","Data or document","Data detail","Photo","Follow up","Description"]];
   CATS.forEach(c=>{ const o = state.obs[c.id]; if(!o||!o.status) return;
-    rows.push([c.name,o.status,o.signals.map(s=>SIG[s].text).concat(o.otherOn&&o.otherText?["Other: "+o.otherText]:[]).join("; "),o.location,(FREQ.find(f=>f[0]===o.freq)||["",""])[1],(IMPACT.find(f=>f[0]===o.impact)||["",""])[1],o.src.seen?"yes":"",o.src.people?"yes":"",o.src.data?"yes":"",o.photo,o.follow?"yes":"",o.desc]); });
+    rows.push([c.name,o.status,o.signals.map(s=>SIG[s].text).concat(o.otherOn&&o.otherText?["Other: "+o.otherText]:[]).join("; "),o.location,(EFFECT.find(f=>f[0]===o.effect)||["",""])[1],o.src.seen?"yes":"",o.src.people?"yes":"",o.src.data?"yes":"",o.dataNote||"",o.photo,o.follow?"yes":"",o.desc]); });
   return rows.map(r=>r.map(q).join(",")).join("\n");
 }
 
@@ -1042,7 +1140,7 @@ document.getElementById("importFile").addEventListener("change", e=>{
   }).catch(()=>toast("That file is not a visit export from this tool.")).finally(()=>{ e.target.value=""; });
 });
 
-function renderAll(){ renderVisit(); renderWalk(); renderProcs(); renderPeople(); renderAnalysis(); updateCounts(); }
+function renderAll(){ renderVisit(); renderPrompts(); renderWalk(); renderProcs(); renderPeople(); renderAnalysis(); updateCounts(); }
 renderAll();
 })();
 </script>
