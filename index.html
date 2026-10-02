@@ -186,6 +186,23 @@ td.hint{padding:18px 0}
 .ins{width:30px; height:30px; border:1px solid var(--rule); border-radius:50%; background:var(--field); color:var(--muted); cursor:pointer; font-size:1.1rem; line-height:1; padding:0}
 .ins:hover{border-color:var(--ink); color:var(--ink)}
 
+/* operating system profile */
+.phouse{display:block; width:100%; max-width:760px; height:auto; margin:0 0 6px}
+.phouse .hp{cursor:pointer}
+.ptabs{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:0 0 12px}
+.pq{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px 24px; align-items:start; padding:16px 0; border-bottom:1px solid var(--rule)}
+.pq h4{margin:0; font-size:1rem; font-weight:600; line-height:1.35}
+.pq .anc{font-size:.8rem; color:var(--muted); margin:3px 0 8px}
+.scores{display:flex; gap:6px}
+.sc{min-width:46px; min-height:46px; border:1px solid var(--rule); background:var(--field); color:var(--muted); cursor:pointer; font-weight:500; font-size:1rem; border-radius:2px; padding:0}
+.sc:hover{border-color:var(--ink); color:var(--ink)}
+.sc[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--page)}
+.pstrip{background:var(--tint); padding:14px 16px; margin-top:18px}
+.pstrip .row{display:flex; align-items:center; gap:10px; padding:6px 0; border-top:1px solid var(--rule); font-size:.9rem}
+.pstrip .row span.q{flex:1; min-width:0}
+.pdot{display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; font-size:.8rem; font-weight:650; background:var(--ink); color:var(--page)}
+.pdot.na{background:var(--field); color:var(--muted); border:1px solid var(--rule)}
+.pmed{width:3rem; text-align:right; font-weight:650}
 /* opportunities: ranked ledger */
 .opp{display:grid; grid-template-columns:minmax(0,1fr) 5.5rem; gap:0 16px; padding:20px 0 22px; border-bottom:1px solid var(--rule)}
 #opps{border-top:1px solid var(--rule-strong)}
@@ -234,6 +251,7 @@ details[open] summary{margin-bottom:4px}
   .addbox{padding:14px}
   .link{flex-basis:auto; flex-direction:row; padding:8px 0}
   .link svg{transform:rotate(90deg)}
+  .pq{grid-template-columns:1fr}
   .panel.on{grid-template-columns:1fr}
   .lede{position:static; margin-bottom:22px}
   .lede h2{font-size:1.5rem}
@@ -265,6 +283,7 @@ details[open] summary{margin-bottom:4px}
       <button class="tab" role="tab" data-tab="walk" aria-selected="false">Plant walk <span class="n" id="nWalk">0</span></button>
       <button class="tab" role="tab" data-tab="measure" aria-selected="false">Process map <span class="n" id="nMeasure">0</span></button>
       <button class="tab" role="tab" data-tab="people" aria-selected="false">People and photos <span class="n" id="nPeople">0</span></button>
+      <button class="tab" role="tab" data-tab="profile" aria-selected="false">Operating system <span class="n" id="nProfile">0</span></button>
       <button class="tab" role="tab" data-tab="analyze" aria-selected="false">Opportunities <span class="n" id="nOpps">0</span></button>
     </nav>
   </div>
@@ -345,6 +364,12 @@ details[open] summary{margin-bottom:4px}
       <div class="actions"><button class="btn" data-act="addPhoto">Add photo</button></div>
     </div>
     </div>
+  </section>
+
+  <!-- PROFILE -->
+  <section class="panel" id="p-profile" role="tabpanel">
+    <div class="lede"><h2>Operating system</h2><p class="intro">An optional profile of how the plant responds to problems and how work is organized, in four blocks arranged as a Lean house. Ask the set questions and score what the person describes from 1 to 5 using the anchors, then write the example behind each score. This is descriptive: it does not change the Opportunities tab. It is not a validated Lean score, so read each block as a spread of answers, not one number.</p></div>
+    <div class="work" id="profileWork"></div>
   </section>
 
   <!-- ANALYZE -->
@@ -455,7 +480,34 @@ const VISIT_FIELDS = [
 /* ---------- state ---------- */
 const LS_KEY = "sawmill-diagnostic-v1";
 const uid = () => Math.random().toString(36).slice(2,9);
-const blank = () => ({visit:{}, obs:{}, maps:[{id:uid(), name:"Product/service 1", procs:[], img:"", demand:"", shifts:"", avail:"", numSrc:"", paceId:"", paceWhy:""}], activeMap:0, prompts:{losses:"",sched:"",laststop:""}, interviews:[], photos:[], starred:[], oppNotes:{}, updatedAt:0});
+const PROFILE = [
+ {id:"ci", name:"Continuous improvement", short:"CI", who:"Ask operators one at a time, without a supervisor present.", role:"Operator",
+  opener:"Opener, not scored: Is everything about your job perfect? Write what they raise.",
+  q:[["If you have an issue, how do you get help to resolve it?","No defined path","Ask a supervisor, depends who","Clear path, fast response"],
+     ["Is there follow-up until it is resolved?","Never","Sometimes, depends on the person","Always, someone owns it"],
+     ["Is the issue always resolved?","Rarely","Often, but quick fixes return","Yes, cause fixed"],
+     ["Do you feel comfortable asking for help?","No","Depends who","Yes, with a recent example"]]},
+ {id:"jd", name:"Jidoka", short:"Jidoka", who:"Ask operators or a supervisor.", role:"Operator", opener:"",
+  q:[["Can you stop the line when you see a defect?","No, must ask first","Yes, but discouraged","Yes, expected and supported"],
+     ["What happens after you stop it?","Ignored or blamed","Someone comes sometimes","Fast response, cause looked at"],
+     ["Where are defects usually caught?","Late, at grading or by the customer","A mix","At the machine where they are made"],
+     ["Is the cause fixed, or is the material just sorted?","Just sorted","Sometimes fixed","Cause fixed and checked"],
+     ["Are abnormal conditions visible at a glance?","No","Some machines","Yes, with a clear response"]]},
+ {id:"jt", name:"JIT: scheduling", short:"JIT", who:"Ask a supervisor or scheduler.", role:"Respondent", opener:"",
+  q:[["Where does the schedule come from?","Unclear, runs at machine rate","Weekly plan from inventory","Driven by customer orders"],
+     ["How often does it change during a shift?","Constantly","Sometimes","Rarely, planned changes"],
+     ["How do stations know what to run next?","Ask or guess","Posted schedule","Clear signal from downstream"],
+     ["Who decides how much buffer is allowed?","Nobody, fills until blocked","Habit","Defined limits"]]},
+ {id:"sw", name:"Standardization", short:"Standard work", who:"You score this by observing two or three stations.", role:"Station", opener:"",
+  q:[["Is there a written or visual standard at the station?","None","Exists, outdated or hidden","Current and visible"],
+     ["Can the operator show it?","No","Partly","Yes"],
+     ["Is it followed the same way across people and shifts?","Varies a lot","Mostly","Consistent"],
+     ["Who updates it?","Nobody","Supervisor, occasionally","Operators and supervisors, on a schedule"]]}
+];
+const PBLOCK = Object.fromEntries(PROFILE.map(b=>[b.id,b]));
+const newResp = (b,i) => ({id:Math.random().toString(36).slice(2,9), n:`${b.role} ${String.fromCharCode(65+i)}`, s:b.q.map(()=>0), e:b.q.map(()=>"")});
+const blankProfile = () => ({cur:"ci", blocks:Object.fromEntries(PROFILE.map(b=>[b.id,{op:"", cur:0, r:[newResp(b,0)]}]))});
+const blank = () => ({visit:{}, obs:{}, maps:[{id:uid(), name:"Product/service 1", procs:[], img:"", demand:"", shifts:"", avail:"", numSrc:"", paceId:"", paceWhy:""}], activeMap:0, profile:blankProfile(), prompts:{losses:"",sched:"",laststop:""}, interviews:[], photos:[], starred:[], oppNotes:{}, updatedAt:0});
 let state = blank();
 function clean(d){
   const st = Object.assign(blank(), d);
@@ -474,6 +526,16 @@ function clean(d){
   delete st.procs;
   st.maps.forEach((m,i)=>{ m.procs = m.procs||[]; m.name = m.name||`Product/service ${i+1}`; m.img = m.img||""; ["demand","shifts","avail","numSrc","paceId","paceWhy"].forEach(k=>{ if(m[k]==null) m[k] = ""; }); });
   st.prompts = Object.assign({losses:"",sched:"",laststop:""}, st.prompts||{});
+  const pf = blankProfile();
+  if(st.profile && st.profile.blocks){
+    PROFILE.forEach(b=>{ const o = st.profile.blocks[b.id];
+      if(o && Array.isArray(o.r) && o.r.length){
+        o.r.forEach((r,i)=>{ r.id = r.id||uid(); r.n = r.n||`${b.role} ${String.fromCharCode(65+i)}`; r.s = b.q.map((_,k)=>+(r.s&&r.s[k])||0); r.e = b.q.map((_,k)=>(r.e&&r.e[k])||""); });
+        pf.blocks[b.id] = {op:o.op||"", cur:0, r:o.r};
+      } });
+    if(PBLOCK[st.profile.cur]) pf.cur = st.profile.cur;
+  }
+  st.profile = pf;
   if(!(st.activeMap>=0 && st.activeMap<st.maps.length)) st.activeMap = 0;
   return st;
 }
@@ -536,6 +598,7 @@ document.getElementById("tabs").addEventListener("click", e=>{
   document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("on", p.id === "p-" + b.dataset.tab));
   if(b.dataset.tab === "analyze") renderAnalysis();
   if(b.dataset.tab === "measure") renderChart();
+  if(b.dataset.tab === "profile") renderProfile();
   window.scrollTo(0,0);
 });
 
@@ -907,6 +970,64 @@ peopleEl.addEventListener("click", e=>{
   }
 });
 
+/* ---------- operating system profile ---------- */
+const pMed = a => { if(!a.length) return null; a = a.slice().sort((x,y)=>x-y); const m = Math.floor(a.length/2); return a.length%2 ? a[m] : (a[m-1]+a[m])/2; };
+const pFmt = x => String(Math.round(x*10)/10);
+function pStat(b){
+  const d = state.profile.blocks[b.id], v = [];
+  d.r.forEach(r=>r.s.forEach(x=>{ if(x) v.push(x); }));
+  if(!v.length) return null;
+  return {m:pMed(v), lo:Math.min(...v), hi:Math.max(...v), n:d.r.filter(r=>r.s.some(Boolean)).length};
+}
+function houseSVG(){
+  const cur = state.profile.cur;
+  const shape = (b,inner)=>{ const st = pStat(b), op = st ? 0.12+0.43*(st.m/5) : 0.04, sel = cur===b.id;
+    return `<g class="hp" data-pb="${b.id}" role="button" tabindex="0" aria-label="${esc(b.name)}${st?", median "+pFmt(st.m):""}">${inner(op,sel?2.5:1,b.short+(st?"  "+pFmt(st.m):""))}</g>`; };
+  const rect = (x,y,w,h) => (op,sw,t)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="var(--accent)" fill-opacity="${op}" stroke="var(--rule-strong)" stroke-width="${sw}"/><text x="${x+w/2}" y="${y+h/2+5}" text-anchor="middle" font-size="16" font-weight="650" fill="var(--ink)" font-family="Archivo,Arial,sans-serif">${esc(t)}</text>`;
+  const roof = (op,sw,t)=>`<polygon points="40,90 320,12 600,90" fill="var(--accent)" fill-opacity="${op}" stroke="var(--rule-strong)" stroke-width="${sw}"/><text x="320" y="66" text-anchor="middle" font-size="16" font-weight="650" fill="var(--ink)" font-family="Archivo,Arial,sans-serif">${esc(t)}</text>`;
+  return `<svg class="phouse" viewBox="0 0 640 230" role="group" aria-label="Lean house: continuous improvement as the roof, JIT and jidoka as pillars, standardization as the base">${shape(PBLOCK.ci,roof)}${shape(PBLOCK.jt,rect(70,100,230,70))}${shape(PBLOCK.jd,rect(340,100,230,70))}${shape(PBLOCK.sw,rect(40,182,560,40))}</svg>`;
+}
+function renderProfile(){
+  const wrap = document.getElementById("profileWork"), P = state.profile, b = PBLOCK[P.cur], d = P.blocks[b.id];
+  d.cur = Math.min(d.cur||0, d.r.length-1);
+  const r = d.r[d.cur], st = pStat(b);
+  let h = houseSVG();
+  h += `<p class="hint" style="margin:0 0 16px">Click a part of the house or a block below. The shading follows the median score of that block. Descriptive only; it does not feed the Opportunities tab.</p>`;
+  h += `<div class="ptabs" role="tablist" aria-label="Blocks">${PROFILE.map(x=>`<button type="button" class="mtab" role="tab" data-pb="${x.id}" aria-selected="${x.id===P.cur}">${esc(x.name)}</button>`).join("")}</div>`;
+  h += `<div class="block"><h3>${esc(b.name)}</h3><p class="hint" style="margin:0 0 6px">${esc(b.who)}</p>`;
+  if(b.opener) h += `<label class="f" style="margin-top:10px">${esc(b.opener)}<textarea data-pop>${esc(d.op)}</textarea></label>`;
+  h += `</div>`;
+  h += `<div class="ptabs">${d.r.map((x,i)=>`<button type="button" class="mtab" data-pr="${i}" aria-selected="${i===d.cur}">${esc(x.n||b.role)}</button>`).join("")}${d.r.length<8?`<button type="button" class="mtab plus" data-padd aria-label="Add a respondent" title="Add a respondent">+</button>`:""}</div>`;
+  h += `<div class="mapbar"><label class="f">Label for this ${esc(b.role.toLowerCase())} (use a role, not a name)<input type="text" data-pname value="${esc(r.n)}"></label>${d.r.length>1?`<button type="button" class="btn danger" data-pdel>Remove this ${esc(b.role.toLowerCase())}</button>`:""}</div>`;
+  h += b.q.map((q,qi)=>`<div class="pq"><div><h4>${qi+1}. ${esc(q[0])}</h4><p class="anc">1 = ${esc(q[1])} &nbsp;·&nbsp; 3 = ${esc(q[2])} &nbsp;·&nbsp; 5 = ${esc(q[3])}</p><input type="text" data-pex="${qi}" value="${esc(r.e[qi])}" placeholder="Example or quote that supports the score" aria-label="Example for question ${qi+1}"></div><div class="scores" role="group" aria-label="Score for question ${qi+1}">${[1,2,3,4,5].map(v=>`<button type="button" class="sc" data-pq="${qi}" data-pv="${v}" aria-pressed="${r.s[qi]===v}">${v}</button>`).join("")}</div></div>`).join("");
+  h += `<div class="pstrip"><h3 style="font-size:1rem;margin:0 0 4px">Profile for ${esc(b.name)}</h3><p class="hint" style="margin:0 0 8px">${st?`Median ${pFmt(st.m)}, range ${st.lo} to ${st.hi}, ${st.n} ${st.n===1?"respondent":"respondents"} scored. Shown as a spread, not one score.`:"No scores yet."}</p>`
+    + b.q.map((q,qi)=>{ const sc = d.r.map(x=>x.s[qi]), m = pMed(sc.filter(Boolean)); return `<div class="row"><span class="q">${qi+1}. ${esc(q[0])}</span>${sc.map(v=>`<span class="pdot${v?"":" na"}">${v||"–"}</span>`).join("")}<span class="pmed">${m===null?"":pFmt(m)}</span></div>`; }).join("") + `</div>`;
+  wrap.innerHTML = h;
+}
+const profEl = document.getElementById("p-profile");
+profEl.addEventListener("click", e=>{
+  const P = state.profile, pb = e.target.closest("[data-pb]");
+  if(pb){ P.cur = pb.dataset.pb; persist(); renderProfile(); return; }
+  const b = PBLOCK[P.cur], d = P.blocks[b.id];
+  const pr = e.target.closest("[data-pr]");
+  if(pr){ d.cur = +pr.dataset.pr; persist(); renderProfile(); return; }
+  if(e.target.closest("[data-padd]")){ d.r.push(newResp(b,d.r.length)); d.cur = d.r.length-1; persist(); renderProfile(); const n = profEl.querySelector("[data-pname]"); if(n){ n.focus(); n.select(); } return; }
+  if(e.target.closest("[data-pdel]")){
+    const r = d.r[d.cur];
+    if((r.s.some(Boolean) || r.e.some(Boolean)) && !confirm("Remove this entry and its scores?")) return;
+    d.r.splice(d.cur,1); d.cur = Math.max(0,d.cur-1); persist(); renderProfile(); toast("Removed"); return;
+  }
+  const sc = e.target.closest("[data-pq]");
+  if(sc){ const r = d.r[d.cur], q = +sc.dataset.pq, v = +sc.dataset.pv; r.s[q] = r.s[q]===v ? 0 : v; persist(); renderProfile(); }
+});
+profEl.addEventListener("keydown", e=>{ if((e.key==="Enter"||e.key===" ") && e.target.matches(".hp")){ e.preventDefault(); e.target.dispatchEvent(new MouseEvent("click",{bubbles:true})); } });
+profEl.addEventListener("input", e=>{
+  const P = state.profile, b = PBLOCK[P.cur], d = P.blocks[b.id], r = d.r[d.cur];
+  if(e.target.matches("[data-pop]")){ d.op = e.target.value; persist(); return; }
+  if(e.target.matches("[data-pname]")){ r.n = e.target.value; const t = profEl.querySelector(`[data-pr="${d.cur}"]`); if(t) t.textContent = r.n || b.role; persist(); return; }
+  if(e.target.matches("[data-pex]")){ r.e[+e.target.dataset.pex] = e.target.value; persist(); }
+});
+
 /* ---------- analysis engine ---------- */
 function mapHits(){
   const hits = {};
@@ -1037,6 +1158,7 @@ oppsEl.addEventListener("input", e=>{
 function updateCounts(){
   document.getElementById("nWalk").textContent = CATS.filter(c=>state.obs[c.id] && state.obs[c.id].status).length + "/" + CATS.length;
   document.getElementById("nMeasure").textContent = state.maps.reduce((n,m)=>n+m.procs.length,0);
+  document.getElementById("nProfile").textContent = PROFILE.reduce((n,b)=>n+state.profile.blocks[b.id].r.filter(r=>r.s.some(Boolean)).length,0);
   document.getElementById("nPeople").textContent = state.interviews.length + state.photos.length;
   document.getElementById("nOpps").textContent = analyze().results.length;
 }
@@ -1109,6 +1231,20 @@ function reportText(){
   if(!results.length) L.push("", "None yet.");
   if(unlinked.length) L.push("", "## Observed but not linked to a pattern", ...unlinked.map(u=>`- ${u.c.name}${u.en.location?" ("+u.en.location+")":""}`));
   if(unclear.length) L.push("", "## Marked unclear", ...unclear.map(c=>`- ${c.name}`));
+  const prof = PROFILE.filter(b=>pStat(b));
+  if(prof.length){
+    L.push("", "## Operating system profile (descriptive; not validated and not used in the opportunities above)");
+    prof.forEach(b=>{
+      const d = state.profile.blocks[b.id], st = pStat(b);
+      L.push("", `### ${b.name}`, `- ${b.who} Median ${pFmt(st.m)}, range ${st.lo} to ${st.hi}, ${st.n} scored.`);
+      if(d.op) L.push(`- Raised when asked if everything about the job is perfect: ${d.op}`);
+      b.q.forEach((q,qi)=>{
+        const sc = d.r.map(x=>x.s[qi]), vals = sc.filter(Boolean);
+        L.push(`- ${q[0]} Scores: ${d.r.map((x,i)=>`${x.n||b.role}: ${sc[i]||"-"}`).join("; ")}${vals.length?` (median ${pFmt(pMed(vals))})`:""}`);
+        d.r.forEach(x=>{ if(x.e[qi]) L.push(`  - ${x.n||b.role}: ${x.e[qi]}`); });
+      });
+    });
+  }
   return L.join("\n");
 }
 function obsCSV(){
@@ -1215,7 +1351,7 @@ document.getElementById("importFile").addEventListener("change", e=>{
   }).catch(()=>toast("That file is not a visit export from this tool.")).finally(()=>{ e.target.value=""; });
 });
 
-function renderAll(){ renderVisit(); renderPrompts(); renderWalk(); renderProcs(); renderPeople(); renderAnalysis(); updateCounts(); }
+function renderAll(){ renderVisit(); renderPrompts(); renderWalk(); renderProcs(); renderPeople(); renderProfile(); renderAnalysis(); updateCounts(); }
 renderAll();
 })();
 </script>
