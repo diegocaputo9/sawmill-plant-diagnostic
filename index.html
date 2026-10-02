@@ -288,13 +288,13 @@ details[open] summary{margin-bottom:4px}
 
   <!-- WALK -->
   <section class="panel" id="p-walk" role="tabpanel">
-    <div class="lede"><h2>Plant walk</h2><p class="intro">Ten categories that are easy to see on a walk. For each one, mark whether you observed an issue. Choose Yes to open quick details. Check only what you actually saw or were told, and tick an evidence source only if it applies; nothing is pre-ticked. These are areas to look at, not assumed problems.</p></div>
+    <div class="lede"><h2>Plant walk</h2><p class="intro">Eleven categories to look at and ask about on a walk. For each one, mark whether you observed an issue. Choose Yes to open quick details. Check only what you actually saw or were told, and tick an evidence source only if it applies.</p></div>
     <div class="work"><div class="cat-headrow"><span>#</span><span>Category</span><span>Issue observed?</span></div><div id="cats"></div></div>
   </section>
 
   <!-- MEASURE -->
   <section class="panel" id="p-measure" role="tabpanel">
-    <div class="lede"><h2>Process map</h2><p class="intro">Name each main step in the order material flows. Open More details for the usual VSM data box items: unit, cycle time, operators, WIP before, changeover, and EPE. Everything except the name is optional. Map details (demand, shifts, available time, pace) are entered once per map so a VSM can be built after the visit.</p></div>
+    <div class="lede"><h2>Process map</h2><p class="intro">Name each main step in the order material flows. Open More details for the usual VSM data box items: unit, cycle time, operators, WIP before, changeover, and EPE. Everything except the name is optional. Map details (demand, shifts, available time, pace) are entered once per map so a VSM can be built after the visit. A flow chart is drawn automatically at the bottom as you enter the process steps.</p></div>
     <div class="work">
     <div class="maptabs" id="mapTabs" role="tablist" aria-label="Product or service process maps"></div>
     <div class="addmenu hidden" id="addMenu"></div>
@@ -378,7 +378,8 @@ const CATS = [
  {id:"down", name:"Equipment downtime and maintenance", sig:[["dt1","Unplanned stops during the visit"],["dt2","Frequent minor stops cleared by operators"],["dt3","Same machine mentioned repeatedly as a problem"],["mnt1","Maintenance is mostly reactive"],["mnt2","No visible preventive or operator maintenance routine"]]},
  {id:"co", name:"Changeovers", sig:[["co1","Changeovers (size, pattern, setup) take a long time"],["co2","Searching for tools or parts during setup"],["co3","Trial and error adjustments after setup"],["co4","Frequent product or size changes"]]},
  {id:"sw", name:"Standard work and visual management", sig:[["sw1","Same task done differently by different people"],["sw2","No written or visual instructions at the station"],["sw3","Results differ between shifts or crews"],["vm1","No display of production versus target"],["vm2","Problems or abnormal conditions not visible at a glance"]]},
- {id:"erg", name:"Safety and ergonomics", sig:[["erg1","Awkward lifting, reaching, or twisting"],["erg2","Repetitive manual handling"],["erg3","Guarding, noise, dust, or exposure concern"],["mot2","Reaching, bending, or turning to get tools or material"]]}
+ {id:"erg", name:"Safety and ergonomics", sig:[["erg1","Awkward lifting, reaching, or twisting"],["erg2","Repetitive manual handling"],["erg3","Guarding, noise, dust, or exposure concern"],["mot2","Reaching, bending, or turning to get tools or material"]]},
+ {id:"ci", name:"Continuous improvement", sig:[["ci1","No continuous improvement system or routine in place"],["ci2","No clear way for operators to give suggestions"],["ci3","Operator suggestions not followed up or acted on"],["ci4","Recurring problems fixed with quick fixes, not root causes"],["ci5","No regular review of performance data with the team"]]}
 ];
 const CAT = Object.fromEntries(CATS.map(c=>[c.id,c]));
 const SIG = {}; CATS.forEach(c=>c.sig.forEach(([id,t])=>SIG[id]={text:t,cat:c.id}));
@@ -397,7 +398,7 @@ const OPPS = [
   tools:["5S","Visual Management"],
   check:["Time lost searching in a typical shift","Which items are used daily versus rarely","Cleaning routine and who owns it"]},
  {id:"quality", title:"Reduce defects, downgrade, and rework", sig:["def1","def2","def3","rw1","rw2"], cats:["def"],
-  tools:["Root Cause Analysis","Standard Work","Visual Management"],
+  tools:["Root Cause Analysis","Jidoka","Kaizen","Standard Work","Visual Management"],
   check:["Grade or reject data by cause","Where in the process the defect is created","How machine settings are checked and recorded"]},
  {id:"handling", title:"Simplify material handling and movement", sig:["mat1","mat2","mat3","mat4","mot1"], cats:["mat"],
   tools:["Material Flow","VSM / flow analysis","5S"],
@@ -413,7 +414,10 @@ const OPPS = [
   check:["How the production schedule is set","Inventory levels by product over time","Lead time from log intake to shipment"]},
  {id:"ergo", title:"Reduce manual handling strain", sig:["erg1","erg2","mot2"], cats:["erg"],
   tools:["Kaizen","Standard Work","5S"],
-  check:["Frequency and weight of manual lifts","Operator comments on strain or fatigue","Injury or near miss records, if the plant shares them"]}
+  check:["Frequency and weight of manual lifts","Operator comments on strain or fatigue","Injury or near miss records, if the plant shares them"]},
+ {id:"ci", title:"Build a routine for solving recurring problems", sig:["ci1","ci2","ci3","ci4","ci5"], cats:["ci"],
+  tools:["Kaizen","Root Cause Analysis","Standard Work"],
+  check:["How problems are discussed today (meetings, boards)","Recent improvements and who led them","Whether recurring problems are tracked and who follows up"]}
 ];
 
 const EFFECT = [["","Not rated"],["stop","Stopped or starved the line"],["slow","Slowed the line"],["local","Local only, no effect on the line seen"]];
@@ -928,7 +932,7 @@ function renderAnalysis(){
           </ul>
           ${missing.length?`<p class="hint" style="margin:4px 0 8px">Missing evidence: ${missing.join(", ")}.</p>`:""}
           ${r.dataMissing.length?`<p class="hint" style="margin:4px 0 8px">Data was ticked in ${r.dataMissing.map(esc).join(", ")} without naming the number or document, so it is not counted.</p>`:""}
-          <div class="sublabel">Check before selecting</div>
+          <div class="sublabel">Check this information before selecting as a project candidate</div>
           <ul>${r.o.check.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>
           <label class="f">Your notes<textarea data-oppnote>${esc(state.oppNotes[r.o.id]||"")}</textarea></label>
         </details>
@@ -1031,7 +1035,7 @@ function reportText(){
     r.dataNotes.forEach(d=>L.push(`- Data: ${d.note} (${d.cat})`));
     r.dh.forEach(d=>L.push(`- Process map: ${d.msg}${d.counts?"":" (not counted as Data)"}`));
     r.ints.forEach(i=>L.push(`- ${i.role||"Someone"} said: ${i.note}`));
-    L.push(`- Check before selecting: ${r.o.check.join("; ")}`);
+    L.push(`- Check this information before selecting as a project candidate: ${r.o.check.join("; ")}`);
     if(state.oppNotes[r.o.id]) L.push(`- Notes: ${state.oppNotes[r.o.id]}`);
   });
   if(!results.length) L.push("", "None yet.");
