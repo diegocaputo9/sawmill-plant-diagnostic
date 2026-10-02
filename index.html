@@ -91,10 +91,20 @@ textarea{min-height:72px; resize:vertical; max-width:100%; display:block}
 .cat-head{padding:10px 0; min-height:60px}
 .cat-head .seg{justify-self:start}
 .cat-num{color:var(--muted); font-size:.85rem}
-.cat-head h3{font-size:1rem; font-weight:500}
-.cat[data-status="yes"] .cat-head h3,.cat[data-status="unclear"] .cat-head h3{font-weight:650}
+.cat-name{font-size:1rem; font-weight:500}
+.cat[data-status="yes"] .cat-name,.cat[data-status="unclear"] .cat-name{font-weight:650}
 .cat[data-status="yes"] .cat-num{color:var(--accent-text); font-weight:650}
-.cat[data-status="no"] .cat-head h3{color:var(--muted)}
+.cat[data-status="no"] .cat-name{color:var(--muted)}
+.cat-toggle{display:flex; align-items:center; gap:10px; background:none; border:0; padding:6px 0; min-height:44px; width:100%; text-align:left; cursor:pointer; color:var(--ink)}
+.cat-toggle:hover .cat-name{text-decoration:underline; text-underline-offset:3px}
+.chev{display:inline-block; flex:none; width:1em; color:var(--muted); transition:transform .12s}
+.cat-toggle[aria-expanded="true"] .chev{transform:rotate(90deg)}
+.cat-count{font-size:.8rem; color:var(--muted); font-weight:500; white-space:nowrap}
+.entry{padding-bottom:6px}
+.entry + .entry{border-top:1px solid var(--rule); padding-top:18px; margin-top:12px}
+.entry-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:6px}
+.lookfor{margin:4px 0 8px; padding-left:1.1rem; color:var(--muted); font-size:.93rem}
+.lookfor li{margin:3px 0}
 .seg{display:inline-flex}
 .seg button{border:1px solid var(--rule); background:var(--field); min-width:56px; min-height:40px; padding:6px 10px; cursor:pointer; font-size:.88rem; font-weight:500; color:var(--muted)}
 .seg button+button{margin-left:-1px}
@@ -288,7 +298,7 @@ details[open] summary{margin-bottom:4px}
 
   <!-- WALK -->
   <section class="panel" id="p-walk" role="tabpanel">
-    <div class="lede"><h2>Plant walk</h2><p class="intro">Ten categories to look at and ask about on a walk. For each one, mark whether you observed an issue. Choose Yes to open quick details. Check only what you actually saw or were told, and tick an evidence source only if it applies.</p></div>
+    <div class="lede"><h2>Plant walk</h2><p class="intro">Ten categories to look at and ask about on a walk. Click a category name to expand or collapse it at any time; you do not need to answer Yes, No, or Unclear first. For each category, mark whether you observed an issue, and choose Yes to open quick details. If you find the same kind of issue in another location, use + Add entry inside that category to record it separately. Check only what you actually saw or were told, and tick an evidence source only if it applies.</p></div>
     <div class="work"><div class="cat-headrow"><span>#</span><span>Category</span><span>Issue observed?</span></div><div id="cats"></div></div>
   </section>
 
@@ -446,7 +456,16 @@ const blank = () => ({visit:{}, obs:{}, maps:[{id:uid(), name:"Product/service 1
 let state = blank();
 function clean(d){
   const st = Object.assign(blank(), d);
-  Object.keys(st.obs).forEach(k=>{ const o = st.obs[k]; if(CAT[k] && o) o.signals = (o.signals||[]).filter(x=>SIG[x] && SIG[x].cat===k); });
+  Object.keys(st.obs).forEach(k=>{
+    const o = st.obs[k]; if(!o) return;
+    if(!Array.isArray(o.entries)){
+      const keep = ["signals","location","desc","effect","src","dataNote","photo","follow","otherOn","otherText"], en = newEntry();
+      keep.forEach(f=>{ if(o[f]!==undefined) en[f] = o[f]; }); keep.forEach(f=>delete o[f]);
+      o.entries = (o.status==="yes"||o.status==="unclear") ? [en] : [];
+    }
+    if(!CAT[k]) return;
+    o.entries.forEach(en=>{ en.signals = (en.signals||[]).filter(x=>SIG[x] && SIG[x].cat===k); en.src = Object.assign({seen:false,people:false,data:false}, en.src||{}); });
+  });
   [st.interviews, st.photos].forEach(l=>l.forEach(r=>{ if(r.cat && !CAT[r.cat]) r.cat = ""; }));
   if(!Array.isArray(st.maps) || !st.maps.length) st.maps = [{id:uid(), name:"Product/service 1", procs:Array.isArray(d.procs)?d.procs:[], img:""}];
   delete st.procs;
@@ -461,7 +480,8 @@ const PR = () => curMap().procs;
 
 const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num = v => (v===""||v==null||isNaN(+v)) ? null : +v;
-const obsOf = id => state.obs[id] || (state.obs[id] = {status:"", signals:[], location:"", desc:"", effect:"", src:{seen:false,people:false,data:false}, dataNote:"", photo:"", follow:false, otherOn:false, otherText:""});
+const newEntry = () => ({signals:[], location:"", desc:"", effect:"", src:{seen:false,people:false,data:false}, dataNote:"", photo:"", follow:false, otherOn:false, otherText:""});
+const obsOf = id => state.obs[id] || (state.obs[id] = {status:"", entries:[]});
 try{ const raw = localStorage.getItem(LS_KEY); if(raw){ state = clean(JSON.parse(raw)); } }catch(e){}
 
 /* ---------- saving ---------- */
@@ -541,35 +561,43 @@ document.getElementById("visitFields").addEventListener("input", e=>{
 });
 
 /* ---------- plant walk ---------- */
+const catOpen = ob => ob.open!==undefined ? ob.open : (ob.status==="yes"||ob.status==="unclear");
+function entryHTML(c,en,i,total){
+  return `<div class="entry" data-e="${i}">
+    ${total>1?`<div class="entry-head"><b>Entry ${i+1}${en.location?": "+esc(en.location):""}</b><button type="button" class="rm" data-del-entry>Remove entry</button></div>`:""}
+    <div class="sublabel">What did you see or hear?</div>
+    <div class="checks">${c.sig.map(([sid,t])=>`<label class="chk"><input type="checkbox" data-sig="${sid}" ${en.signals.includes(sid)?"checked":""}><span>${esc(t)}</span></label>`).join("")}<label class="chk"><input type="checkbox" data-other ${en.otherOn?"checked":""}><span>Other</span></label></div>
+    ${en.otherOn?`<label class="f" style="margin-bottom:14px">Explain what you saw or heard<input type="text" data-o="otherText" value="${esc(en.otherText)}"></label>`:""}
+    <div class="grid">
+      <label class="f">Location<input type="text" data-o="location" value="${esc(en.location)}"></label>
+      <label class="f">Effect on the line<select data-o="effect">${EFFECT.map(([v,l])=>`<option value="${v}" ${en.effect===v?"selected":""}>${l}</option>`).join("")}</select></label>
+      <label class="f">Photo reference<input type="text" data-o="photo" value="${esc(en.photo)}" placeholder="e.g. 12, 13"></label>
+      <label class="f" style="grid-column:1/-1">Description<textarea data-o="desc">${esc(en.desc)}</textarea></label>
+    </div>
+    <div class="sublabel">Evidence for this area</div>
+    <div class="chips">
+      <button type="button" class="chip" data-src="seen" aria-pressed="${!!en.src.seen}">I observed it</button>
+      <button type="button" class="chip" data-src="people" aria-pressed="${!!en.src.people}">People told me</button>
+      <button type="button" class="chip" data-src="data" aria-pressed="${!!en.src.data}">Data or a document shows it</button>
+      <button type="button" class="chip" data-o-toggle="follow" aria-pressed="${!!en.follow}">Follow up needed</button>
+    </div>
+    ${en.src.data?`<label class="f" style="margin-top:8px">What data or document? Write the number or the report name. Data without this is not counted.<input type="text" data-o="dataNote" value="${esc(en.dataNote)}" placeholder="e.g. downtime log, 14 stops last week"></label>`:""}
+  </div>`;
+}
 function catHTML(c){
-  const o = state.obs[c.id] || {status:""};
-  const st = o.status || "";
+  const ob = state.obs[c.id] || {status:"", entries:[]};
+  const st = ob.status || "", open = catOpen(ob), showEntries = (st==="yes"||st==="unclear") && ob.entries.length>0;
   const seg = ["yes","no","unclear"].map(v=>`<button type="button" data-v="${v}" aria-pressed="${st===v}">${v==="yes"?"Yes":v==="no"?"No":"Unclear"}</button>`).join("");
   let body = "";
-  if(st==="yes" || st==="unclear"){
-    const ob = obsOf(c.id);
-    body = `<div class="cat-body">
-      <div class="sublabel">What did you see or hear?</div>
-      <div class="checks">${c.sig.map(([sid,t])=>`<label class="chk"><input type="checkbox" data-sig="${sid}" ${ob.signals.includes(sid)?"checked":""}><span>${esc(t)}</span></label>`).join("")}<label class="chk"><input type="checkbox" data-other ${ob.otherOn?"checked":""}><span>Other</span></label></div>
-      ${ob.otherOn?`<label class="f" style="margin-bottom:14px">Explain what you saw or heard<input type="text" data-o="otherText" value="${esc(ob.otherText)}"></label>`:""}
-      <div class="grid">
-        <label class="f">Location<input type="text" data-o="location" value="${esc(ob.location)}"></label>
-        <label class="f">Effect on the line<select data-o="effect">${EFFECT.map(([v,l])=>`<option value="${v}" ${ob.effect===v?"selected":""}>${l}</option>`).join("")}</select></label>
-        <label class="f">Photo reference<input type="text" data-o="photo" value="${esc(ob.photo)}" placeholder="e.g. 12, 13"></label>
-        <label class="f" style="grid-column:1/-1">Description<textarea data-o="desc">${esc(ob.desc)}</textarea></label>
-      </div>
-      <div class="sublabel">Evidence for this area</div>
-      <div class="chips">
-        <button type="button" class="chip" data-src="seen" aria-pressed="${!!ob.src.seen}">I observed it</button>
-        <button type="button" class="chip" data-src="people" aria-pressed="${!!ob.src.people}">People told me</button>
-        <button type="button" class="chip" data-src="data" aria-pressed="${!!ob.src.data}">Data or a document shows it</button>
-        <button type="button" class="chip" data-o-toggle="follow" aria-pressed="${!!ob.follow}">Follow up needed</button>
-      </div>
-      ${ob.src.data?`<label class="f" style="margin-top:8px">What data or document? Write the number or the report name. Data without this is not counted.<input type="text" data-o="dataNote" value="${esc(ob.dataNote)}" placeholder="e.g. downtime log, 14 stops last week"></label>`:""}
-    </div>`;
+  if(open){
+    body = `<div class="cat-body">` + (showEntries
+      ? ob.entries.map((en,i)=>entryHTML(c,en,i,ob.entries.length)).join("")
+      : `<div class="sublabel">What to look for</div><ul class="lookfor">${c.sig.map(([,t])=>`<li>${esc(t)}</li>`).join("")}</ul><p class="hint" style="margin:0 0 8px">Mark Yes or Unclear above to record what you found, or add an entry.</p>`)
+      + `<div class="actions" style="margin-top:6px"><button type="button" class="btn alt" data-add-entry>+ Add entry</button></div></div>`;
   }
+  const cnt = showEntries && ob.entries.length>1 ? `<span class="cat-count">${ob.entries.length} entries</span>` : "";
   return `<div class="cat" data-cat="${c.id}" data-status="${st}">
-    <div class="cat-head"><span class="cat-num">${String(CATS.indexOf(c)+1).padStart(2,"0")}</span><h3>${esc(c.name)}</h3><div class="seg" role="group" aria-label="Observed?">${seg}</div></div>${body}</div>`;
+    <div class="cat-head"><span class="cat-num">${String(CATS.indexOf(c)+1).padStart(2,"0")}</span><button type="button" class="cat-toggle" data-toggle aria-expanded="${open}"><span class="chev" aria-hidden="true">&#9656;</span><span class="cat-name">${esc(c.name)}</span>${cnt}</button><div class="seg" role="group" aria-label="Issue observed?">${seg}</div></div>${body}</div>`;
 }
 function renderWalk(){ document.getElementById("cats").innerHTML = CATS.map(catHTML).join(""); }
 function rerenderCat(id){
@@ -577,42 +605,65 @@ function rerenderCat(id){
   el.outerHTML = catHTML(CAT[id]);
 }
 const catsEl = document.getElementById("cats");
+const entryOf = (ob,el) => { const e = el.closest(".entry"); return e ? ob.entries[+e.dataset.e] : null; };
 catsEl.addEventListener("click", e=>{
   const catEl = e.target.closest(".cat"); if(!catEl) return;
-  const id = catEl.dataset.cat;
+  const id = catEl.dataset.cat, ob = obsOf(id);
+  if(e.target.closest("[data-toggle]")){ ob.open = !catOpen(ob); persist(); rerenderCat(id); return; }
   const segBtn = e.target.closest(".seg button");
   if(segBtn){
-    const ob = obsOf(id);
     ob.status = ob.status === segBtn.dataset.v ? "" : segBtn.dataset.v;
+    if(ob.status==="yes" || ob.status==="unclear"){ if(!ob.entries.length) ob.entries.push(newEntry()); ob.open = true; }
+    else if(ob.status==="no") ob.open = false;
     persist(); rerenderCat(id); return;
   }
-  const chip = e.target.closest(".chip");
-  if(chip){
-    const ob = obsOf(id);
-    if(chip.dataset.src){ ob.src[chip.dataset.src] = !ob.src[chip.dataset.src]; chip.setAttribute("aria-pressed", ob.src[chip.dataset.src]);
-      if(chip.dataset.src==="data"){ persist(); rerenderCat(id); if(ob.src.data){ const t = document.querySelector(`.cat[data-cat="${id}"] [data-o="dataNote"]`); if(t) t.focus(); } return; } }
-    else { ob.follow = !ob.follow; chip.setAttribute("aria-pressed", ob.follow); }
+  if(e.target.closest("[data-add-entry]")){
+    if(ob.status!=="yes" && ob.status!=="unclear") ob.status = "yes";
+    ob.entries.push(newEntry()); ob.open = true; persist(); rerenderCat(id);
+    const all = document.querySelectorAll(`.cat[data-cat="${id}"] .entry`), last = all[all.length-1];
+    if(last){ const t = last.querySelector('[data-o="location"]'); if(t) t.focus(); last.scrollIntoView({block:"nearest"}); }
+    return;
+  }
+  const del = e.target.closest("[data-del-entry]");
+  if(del){
+    const i = +del.closest(".entry").dataset.e, en = ob.entries[i];
+    if((en.signals.length || en.location || en.desc || en.otherText || en.photo) && !confirm("Remove this entry?")) return;
+    ob.entries.splice(i,1); persist(); rerenderCat(id); toast("Entry removed"); return;
+  }
+  const chip = e.target.closest(".chip"), en = chip && entryOf(ob, chip);
+  if(chip && en){
+    if(chip.dataset.src){
+      en.src[chip.dataset.src] = !en.src[chip.dataset.src]; chip.setAttribute("aria-pressed", en.src[chip.dataset.src]);
+      if(chip.dataset.src==="data"){
+        const i = chip.closest(".entry").dataset.e; persist(); rerenderCat(id);
+        if(en.src.data){ const t = document.querySelector(`.cat[data-cat="${id}"] .entry[data-e="${i}"] [data-o="dataNote"]`); if(t) t.focus(); }
+        return;
+      }
+    } else { en.follow = !en.follow; chip.setAttribute("aria-pressed", en.follow); }
     persist();
   }
 });
 catsEl.addEventListener("change", e=>{
   const catEl = e.target.closest(".cat"); if(!catEl) return;
-  const ob = obsOf(catEl.dataset.cat);
+  const id = catEl.dataset.cat, ob = obsOf(id), en = entryOf(ob, e.target); if(!en) return;
   if(e.target.matches("[data-other]")){
-    ob.otherOn = e.target.checked; persist(); rerenderCat(catEl.dataset.cat);
-    if(ob.otherOn){ const t = document.querySelector(`.cat[data-cat="${catEl.dataset.cat}"] [data-o="otherText"]`); if(t) t.focus(); }
+    const i = e.target.closest(".entry").dataset.e;
+    en.otherOn = e.target.checked; persist(); rerenderCat(id);
+    if(en.otherOn){ const t = document.querySelector(`.cat[data-cat="${id}"] .entry[data-e="${i}"] [data-o="otherText"]`); if(t) t.focus(); }
     return;
   }
   if(e.target.dataset.sig){
-    const s = e.target.dataset.sig;
-    ob.signals = e.target.checked ? [...new Set([...ob.signals, s])] : ob.signals.filter(x=>x!==s);
+    const sg = e.target.dataset.sig;
+    en.signals = e.target.checked ? [...new Set([...en.signals, sg])] : en.signals.filter(x=>x!==sg);
     persist();
   }
 });
 catsEl.addEventListener("input", e=>{
   const catEl = e.target.closest(".cat"); if(!catEl) return;
   const k = e.target.dataset.o; if(!k) return;
-  obsOf(catEl.dataset.cat)[k] = e.target.value; persist();
+  const en = entryOf(obsOf(catEl.dataset.cat), e.target); if(!en) return;
+  en[k] = e.target.value; persist();
+  if(k==="location"){ const h = e.target.closest(".entry").querySelector(".entry-head b"); if(h){ const i = +e.target.closest(".entry").dataset.e; h.textContent = `Entry ${i+1}${e.target.value?": "+e.target.value:""}`; } }
 });
 
 /* ---------- process map ---------- */
@@ -862,14 +913,16 @@ function analyze(){
     const catsInvolved = new Set();
     CATS.forEach(c=>{
       const ob = state.obs[c.id]; if(!ob || ob.status!=="yes") return;
-      const sigs = ob.signals.filter(s=>o.sig.includes(s));
-      if(!sigs.length) return;
-      catsInvolved.add(c.id);
-      sigs.forEach(s=>matched.push({text:SIG[s].text, cat:c.name, loc:ob.location, photo:ob.photo}));
-      if(ob.src.seen) seen = true;
-      if(ob.src.people) people = true;
-      if(ob.src.data){ if((ob.dataNote||"").trim()){ data = true; dataNotes.push({cat:c.name, note:ob.dataNote.trim()}); } else dataMissing.push(c.name); }
-      eff = Math.max(eff, EFFECT_RANK[ob.effect]||0);
+      ob.entries.forEach(en=>{
+        const sigs = en.signals.filter(s=>o.sig.includes(s));
+        if(!sigs.length) return;
+        catsInvolved.add(c.id);
+        sigs.forEach(s=>matched.push({text:SIG[s].text, cat:c.name, loc:en.location, photo:en.photo}));
+        if(en.src.seen) seen = true;
+        if(en.src.people) people = true;
+        if(en.src.data){ if((en.dataNote||"").trim()){ data = true; dataNotes.push({cat:c.name, note:en.dataNote.trim()}); } else dataMissing.push(c.name); }
+        eff = Math.max(eff, EFFECT_RANK[en.effect]||0);
+      });
     });
     const ints = state.interviews.filter(r=>r.cat && (catsInvolved.has(r.cat) || o.cats.includes(r.cat)) && (r.note||"").trim());
     if(ints.length) people = true;
@@ -884,9 +937,10 @@ function analyze(){
   const bo = id => BUCKETS.findIndex(b=>b[0]===id);
   results.sort((a,b)=>bo(a.bucket)-bo(b.bucket) || b.n-a.n || b.eff-a.eff || a.oi-b.oi);
   const linked = new Set(OPPS.flatMap(o=>o.sig));
-  const unlinked = CATS.filter(c=>{ const ob=state.obs[c.id]; return ob && ob.status==="yes" && !(ob.signals||[]).some(s=>linked.has(s)); });
+  const unlinked = [];
+  CATS.forEach(c=>{ const ob = state.obs[c.id]; if(ob && ob.status==="yes") ob.entries.forEach(en=>{ if(!en.signals.some(s=>linked.has(s))) unlinked.push({c, en}); }); });
   const unclear = CATS.filter(c=>state.obs[c.id] && state.obs[c.id].status==="unclear");
-  const safety = !!(state.obs.erg && state.obs.erg.status && (state.obs.erg.signals||[]).includes("erg3"));
+  const safety = !!(state.obs.erg && state.obs.erg.status && state.obs.erg.entries.some(en=>en.signals.includes("erg3")));
   return {results, unlinked, unclear, safety};
 }
 
@@ -949,7 +1003,7 @@ function renderAnalysis(){
     }).join("");
   }
   let extra = "";
-  if(unlinked.length) extra += `<div class="block after"><h3>Observed but not linked to a pattern</h3><p class="hint">Areas marked Yes without a checked item. Review the description; they may point to something the patterns above do not cover.</p><ul>${unlinked.map(c=>{ const ob = state.obs[c.id]; const t = [ob.otherOn&&ob.otherText&&"Other: "+ob.otherText, ob.desc].filter(Boolean).join(". "); return `<li>${esc(c.name)}${t?": "+esc(t):""}</li>`; }).join("")}</ul></div>`;
+  if(unlinked.length) extra += `<div class="block after"><h3>Observed but not linked to a pattern</h3><p class="hint">Areas marked Yes without a checked item. Review the description; they may point to something the patterns above do not cover.</p><ul>${unlinked.map(u=>{ const en = u.en; const t = [en.otherOn&&en.otherText&&"Other: "+en.otherText, en.desc].filter(Boolean).join(". "); return `<li>${esc(u.c.name)}${en.location?" ("+esc(en.location)+")":""}${t?": "+esc(t):""}</li>`; }).join("")}</ul></div>`;
   if(unclear.length) extra += `<div class="block ${unlinked.length?"":"after"}"><h3>Marked unclear</h3><p class="hint">Worth a follow up question or a second look.</p><ul>${unclear.map(c=>`<li>${esc(c.name)}</li>`).join("")}</ul></div>`;
   document.getElementById("unlinked").innerHTML = extra;
   document.getElementById("nOpps").textContent = results.length;
@@ -991,17 +1045,21 @@ function reportText(){
     if(P.sched) L.push(`- How the next run is decided: ${P.sched}`);
   }
   L.push("", "## Observations");
-  CATS.forEach(c=>{ const o = state.obs[c.id]; if(!o||!o.status) return;
-    L.push(`### ${c.name}: ${o.status}`);
-    o.signals.forEach(s=>L.push(`- ${SIG[s].text}`));
-    const eff = (EFFECT.find(f=>f[0]===o.effect)||["",""])[1];
-    const meta = [o.location&&`Location: ${o.location}`, o.effect&&`Effect on the line: ${eff}`, o.photo&&`Photos: ${o.photo}`, o.follow&&"Follow up needed"].filter(Boolean);
-    if(meta.length) L.push(`- ${meta.join("; ")}`);
-    const src = [o.src.seen&&"observed", o.src.people&&"people", o.src.data&&"data or document"].filter(Boolean);
-    if(src.length) L.push(`- Evidence: ${src.join(", ")}`);
-    if(o.src.data && o.dataNote) L.push(`- Data or document: ${o.dataNote}`);
-    if(o.otherOn && o.otherText) L.push(`- Other: ${o.otherText}`);
-    if(o.desc) L.push(`- Notes: ${o.desc}`);
+  CATS.forEach(c=>{ const ob = state.obs[c.id]; if(!ob||!ob.status) return;
+    L.push(`### ${c.name}: ${ob.status}`);
+    const ens = (ob.status==="yes"||ob.status==="unclear") ? ob.entries : [];
+    ens.forEach((o,i)=>{
+      if(ens.length>1) L.push(`**Entry ${i+1}${o.location?": "+o.location:""}**`);
+      o.signals.forEach(s=>L.push(`- ${SIG[s].text}`));
+      const eff = (EFFECT.find(f=>f[0]===o.effect)||["",""])[1];
+      const meta = [o.location&&ens.length===1&&`Location: ${o.location}`, o.effect&&`Effect on the line: ${eff}`, o.photo&&`Photos: ${o.photo}`, o.follow&&"Follow up needed"].filter(Boolean);
+      if(meta.length) L.push(`- ${meta.join("; ")}`);
+      const src = [o.src.seen&&"observed", o.src.people&&"people", o.src.data&&"data or document"].filter(Boolean);
+      if(src.length) L.push(`- Evidence: ${src.join(", ")}`);
+      if(o.src.data && o.dataNote) L.push(`- Data or document: ${o.dataNote}`);
+      if(o.otherOn && o.otherText) L.push(`- Other: ${o.otherText}`);
+      if(o.desc) L.push(`- Notes: ${o.desc}`);
+    });
     L.push("");
   });
   state.maps.forEach(m=>{
@@ -1038,15 +1096,18 @@ function reportText(){
     if(state.oppNotes[r.o.id]) L.push(`- Notes: ${state.oppNotes[r.o.id]}`);
   });
   if(!results.length) L.push("", "None yet.");
-  if(unlinked.length) L.push("", "## Observed but not linked to a pattern", ...unlinked.map(c=>`- ${c.name}`));
+  if(unlinked.length) L.push("", "## Observed but not linked to a pattern", ...unlinked.map(u=>`- ${u.c.name}${u.en.location?" ("+u.en.location+")":""}`));
   if(unclear.length) L.push("", "## Marked unclear", ...unclear.map(c=>`- ${c.name}`));
   return L.join("\n");
 }
 function obsCSV(){
   const q = s => `"${String(s==null?"":s).replace(/"/g,'""')}"`;
-  const rows = [["Area","Observed","Items","Location","Effect on the line","Observed it","People","Data or document","Data detail","Photo","Follow up","Description"]];
-  CATS.forEach(c=>{ const o = state.obs[c.id]; if(!o||!o.status) return;
-    rows.push([c.name,o.status,o.signals.map(s=>SIG[s].text).concat(o.otherOn&&o.otherText?["Other: "+o.otherText]:[]).join("; "),o.location,(EFFECT.find(f=>f[0]===o.effect)||["",""])[1],o.src.seen?"yes":"",o.src.people?"yes":"",o.src.data?"yes":"",o.dataNote||"",o.photo,o.follow?"yes":"",o.desc]); });
+  const rows = [["Area","Entry","Observed","Items","Location","Effect on the line","Observed it","People","Data or document","Data detail","Photo","Follow up","Description"]];
+  CATS.forEach(c=>{ const ob = state.obs[c.id]; if(!ob||!ob.status) return;
+    const ens = (ob.status==="yes"||ob.status==="unclear") ? ob.entries : [];
+    if(!ens.length){ rows.push([c.name,"",ob.status,"","","","","","","","","",""]); return; }
+    ens.forEach((o,i)=>rows.push([c.name,i+1,ob.status,o.signals.map(s=>SIG[s].text).concat(o.otherOn&&o.otherText?["Other: "+o.otherText]:[]).join("; "),o.location,(EFFECT.find(f=>f[0]===o.effect)||["",""])[1],o.src.seen?"yes":"",o.src.people?"yes":"",o.src.data?"yes":"",o.dataNote||"",o.photo,o.follow?"yes":"",o.desc]));
+  });
   return rows.map(r=>r.map(q).join(",")).join("\n");
 }
 
