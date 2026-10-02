@@ -288,7 +288,7 @@ details[open] summary{margin-bottom:4px}
 
   <!-- WALK -->
   <section class="panel" id="p-walk" role="tabpanel">
-    <div class="lede"><h2>Plant walk</h2><p class="intro">Eleven categories to look at and ask about on a walk. For each one, mark whether you observed an issue. Choose Yes to open quick details. Check only what you actually saw or were told, and tick an evidence source only if it applies.</p></div>
+    <div class="lede"><h2>Plant walk</h2><p class="intro">Ten categories to look at and ask about on a walk. For each one, mark whether you observed an issue. Choose Yes to open quick details. Check only what you actually saw or were told, and tick an evidence source only if it applies.</p></div>
     <div class="work"><div class="cat-headrow"><span>#</span><span>Category</span><span>Issue observed?</span></div><div id="cats"></div></div>
   </section>
 
@@ -371,10 +371,9 @@ details[open] summary{margin-bottom:4px}
 const CATS = [
  {id:"5s", name:"5S and housekeeping", sig:[["5s1","Tools or parts without a set place"],["5s2","Time spent searching for items"],["5s3","Sawdust, bark, or debris buildup affecting work"],["5s4","Unneeded items in the work area"]]},
  {id:"mat", name:"Material movement and handling", sig:[["mat1","Long loader or forklift travel"],["mat2","Material handled more than once"],["mat3","Backtracking or crossing flows"],["mat4","Staging areas unclear or overflowing"],["mot1","Operators leave their station often"]]},
- {id:"wait", name:"Waiting (starved or blocked)", sig:[["wait1","Machine waiting for material (starved)"],["wait2","Machine stopped because downstream is full (blocked)"],["wait3","People waiting for maintenance, instructions, or material"]]},
- {id:"wip", name:"Inventory and WIP buildup", sig:[["wip1","Material piling up between two processes"],["wip2","Large log or lumber inventory with no clear reason"],["wip3","Buffer levels change a lot during the visit"],["ovp2","Finished goods inventory growing"]]},
+ {id:"wait", name:"Waiting and flow interruptions", sig:[["wait1","Machine waiting for material (starved)"],["wait2","Machine stopped because downstream is full (blocked)"],["flow2","Jams or pileups on conveyors or transfers"],["wait3","People waiting for maintenance, instructions, or material"]]},
+ {id:"wip", name:"Inventory and WIP buildup", sig:[["wip2","Large log or lumber inventory with no clear reason"],["wip3","Buffer levels change a lot during the visit"],["ovp2","Finished goods inventory growing"]]},
  {id:"def", name:"Defects and rework", sig:[["def1","Visible defects such as size variation, wane, or skips"],["def2","Boards downgraded or rejected at grading"],["def3","Defects traced to a specific machine or setting"],["rw1","Boards run, trimmed, or sorted a second time"],["rw2","Product sent back to an earlier step"]]},
- {id:"flow", name:"Flow interruptions and jams", sig:[["flow1","Stop and go flow on a line"],["flow2","Jams or pileups on conveyors or transfers"],["flow3","One process clearly slower than its neighbors"]]},
  {id:"down", name:"Equipment downtime and maintenance", sig:[["dt1","Unplanned stops during the visit"],["dt2","Frequent minor stops cleared by operators"],["dt3","Same machine mentioned repeatedly as a problem"],["mnt1","Maintenance is mostly reactive"],["mnt2","No visible preventive or operator maintenance routine"]]},
  {id:"co", name:"Changeovers", sig:[["co1","Changeovers (size, pattern, setup) take a long time"],["co2","Searching for tools or parts during setup"],["co3","Trial and error adjustments after setup"],["co4","Frequent product or size changes"]]},
  {id:"sw", name:"Standard work and visual management", sig:[["sw1","Same task done differently by different people"],["sw2","No written or visual instructions at the station"],["sw3","Results differ between shifts or crews"],["vm1","No display of production versus target"],["vm2","Problems or abnormal conditions not visible at a glance"]]},
@@ -388,7 +387,7 @@ const OPPS = [
  {id:"downtime", title:"Reduce unplanned equipment stoppages", sig:["dt1","dt2","dt3","mnt1","mnt2","wait3"], cats:["down"],
   tools:["TPM","Root Cause Analysis","Visual Management"],
   check:["Downtime log by machine and cause for recent weeks","Top stop reasons and how often they recur","Who responds to stops and how long it takes"]},
- {id:"flow", title:"Relieve a flow constraint between processes", sig:["wait1","wait2","wip1","wip3","flow1","flow2","flow3"], cats:["wait","wip","flow"],
+ {id:"flow", title:"Relieve a flow constraint between processes", sig:["wait1","wait2","flow2","wip3"], cats:["wait","wip"],
   tools:["VSM / flow analysis","Line Balancing","Kaizen"],
   check:["Cycle time of the suspected constraint and its neighbors","How long material sits in the buffer","Whether the pileup happens every shift"]},
  {id:"changeover", title:"Shorten changeovers", sig:["co1","co2","co3","co4"], cats:["co"],
