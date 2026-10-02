@@ -410,9 +410,9 @@ const CATS = [
  {id:"5s", name:"5S and housekeeping", sig:[["5s1","Tools or parts without a set place"],["5s2","Time spent searching for items"],["5s3","Sawdust, bark, or debris buildup affecting work"],["5s4","Unneeded items in the work area"]]},
  {id:"mat", name:"Material movement and handling", sig:[["mat1","Long loader or forklift travel"],["mat2","Material handled more than once"],["mat3","Backtracking or crossing flows"],["mat4","Staging areas unclear or overflowing"],["mot1","Operators leave their station often"]]},
  {id:"wait", name:"Waiting and flow interruptions", sig:[["wait1","Machine waiting for material (starved)"],["wait2","Machine stopped because downstream is full (blocked)"],["flow2","Jams or pileups on conveyors or transfers"],["wait3","People waiting for maintenance, instructions, or material"]]},
- {id:"wip", name:"Inventory and WIP buildup", sig:[["wip2","Large log or lumber inventory with no clear reason"],["wip3","Buffer levels change a lot during the visit"],["ovp2","Finished goods inventory growing"]]},
- {id:"def", name:"Defects and rework", sig:[["def1","Visible defects such as size variation, wane, or skips"],["def2","Boards downgraded or rejected at grading"],["def3","Defects traced to a specific machine or setting"],["rw1","Boards run, trimmed, or sorted a second time"],["rw2","Product sent back to an earlier step"]]},
- {id:"down", name:"Equipment downtime and maintenance", sig:[["dt1","Unplanned stops during the visit"],["dt2","Frequent minor stops cleared by operators"],["dt3","Same machine mentioned repeatedly as a problem"],["mnt1","Maintenance is mostly reactive"],["mnt2","No visible preventive or operator maintenance routine"]]},
+ {id:"wip", name:"Inventory, WIP, and scheduling", sig:[["plan1","Schedule unclear, or changed often during the shift"],["wip2","Large log or lumber inventory with no clear reason"],["wip3","Buffer levels change a lot during the visit"],["ovp2","Finished goods inventory growing"]]},
+ {id:"def", name:"Defects, rework, and yield", sig:[["def4","Defects found late, at grading or by the customer, not where they are made"],["yld1","Lumber recovery (yield) not tracked, or known to be below target"],["def1","Visible defects such as size variation, wane, or skips"],["def2","Boards downgraded or rejected at grading"],["def3","Defects traced to a specific machine or setting"],["rw1","Boards run, trimmed, or sorted a second time"],["rw2","Product sent back to an earlier step"]]},
+ {id:"down", name:"Equipment downtime and maintenance", sig:[["pm1","Downtime, output, or losses not recorded, or recorded but not reviewed"],["dt1","Unplanned stops during the visit"],["dt2","Frequent minor stops cleared by operators"],["dt3","Same machine mentioned repeatedly as a problem"],["mnt1","Maintenance is mostly reactive"],["mnt2","No visible preventive or operator maintenance routine"]]},
  {id:"co", name:"Changeovers", sig:[["co1","Changeovers (size, pattern, setup) take a long time"],["co2","Searching for tools or parts during setup"],["co3","Trial and error adjustments after setup"],["co4","Frequent product or size changes"]]},
  {id:"sw", name:"Standard work and visual management", sig:[["sw1","Same task done differently by different people"],["sw2","No written or visual instructions at the station"],["sw3","Results differ between shifts or crews"],["vm1","No display of production versus target"],["vm2","Problems or abnormal conditions not visible at a glance"]]},
  {id:"erg", name:"Safety and ergonomics", sig:[["erg1","Awkward lifting, reaching, or twisting"],["erg2","Repetitive manual handling"],["erg3","Guarding, noise, dust, or exposure concern"],["mot2","Reaching, bending, or turning to get tools or material"]]},
@@ -426,7 +426,7 @@ const OPPS = [
   tools:["TPM","Root Cause Analysis","Visual Management"],
   check:["Downtime log by machine and cause for recent weeks","Top stop reasons and how often they recur","Who responds to stops and how long it takes"]},
  {id:"flow", title:"Relieve a flow constraint between processes", sig:["wait1","wait2","flow2","wip3"], cats:["wait","wip"],
-  tools:["VSM / flow analysis","Line Balancing","Kaizen"],
+  tools:["Bottleneck analysis (TOC)","VSM / flow analysis","Kaizen"],
   check:["Cycle time of the suspected constraint and its neighbors","How long material sits in the buffer","Whether the pileup happens every shift"]},
  {id:"changeover", title:"Shorten changeovers", sig:["co1","co2","co3","co4"], cats:["co"],
   tools:["SMED","Standard Work","5S"],
@@ -434,29 +434,46 @@ const OPPS = [
  {id:"org", title:"Organize work areas to cut searching and clutter", sig:["5s1","5s2","5s3","5s4","co2","mot2"], cats:["5s"],
   tools:["5S","Visual Management"],
   check:["Time lost searching in a typical shift","Which items are used daily versus rarely","Cleaning routine and who owns it"]},
- {id:"quality", title:"Reduce defects, downgrade, and rework", sig:["def1","def2","def3","rw1","rw2"], cats:["def"],
-  tools:["Root Cause Analysis","Jidoka","Kaizen","Standard Work","Visual Management"],
-  check:["Grade or reject data by cause","Where in the process the defect is created","How machine settings are checked and recorded"]},
+ {id:"quality", title:"Reduce defects, downgrade, rework, and yield loss", sig:["def1","def2","def3","def4","yld1","rw1","rw2"], cats:["def"],
+  tools:["Root Cause Analysis","Yield and quality control (SPC)","Jidoka","Kaizen","Standard Work"],
+  check:["Grade or reject data by cause","Where in the process the defect is created and where it is found","Recovery (yield) by product compared with its target","How machine settings are checked and recorded"]},
  {id:"handling", title:"Simplify material handling and movement", sig:["mat1","mat2","mat3","mat4","mot1"], cats:["mat"],
   tools:["Material Flow","VSM / flow analysis","5S"],
   check:["Trace one load from arrival to the next step: distance and number of touches","Loader or forklift trips per hour","Staging locations and the rules for using them"]},
  {id:"method", title:"Standardize key work methods", sig:["sw1","sw2","sw3","co3"], cats:["sw"],
   tools:["Standard Work","Kaizen","Visual Management"],
   check:["Watch the same task done by two operators or shifts","Compare output or quality by shift","Existing instructions or training material"]},
- {id:"visibility", title:"Make performance and problems visible", sig:["vm1","vm2"], cats:[],
-  tools:["Visual Management","Kaizen"],
-  check:["What targets exist and who sees them","How problems are escalated today","What information supervisors check during a shift"]},
- {id:"overprod", title:"Align production and inventory with demand", sig:["ovp2","wip2"], cats:[],
-  tools:["VSM / flow analysis","Material Flow"],
-  check:["How the production schedule is set","Inventory levels by product over time","Lead time from log intake to shipment"]},
+ {id:"visibility", title:"Make performance and problems visible", sig:["vm1","vm2","pm1"], cats:[],
+  tools:["Performance measurement (OEE)","Visual Management","Kaizen"],
+  check:["Whether downtime, output, and losses are recorded, and who reviews them","What targets exist and who sees them","How problems are escalated today"]},
+ {id:"overprod", title:"Align production, scheduling, and inventory with demand", sig:["ovp2","wip2","plan1"], cats:[],
+  tools:["Production planning and inventory control","VSM / flow analysis","Material Flow"],
+  check:["How the production schedule is set","How often it changes during a shift, and why","Inventory levels by product over time","Lead time from log intake to shipment"]},
  {id:"ergo", title:"Reduce manual handling strain", sig:["erg1","erg2","mot2"], cats:["erg"],
-  tools:["Kaizen","Standard Work","5S"],
+  tools:["Methods and work measurement","Standard Work","Kaizen"],
   check:["Frequency and weight of manual lifts","Operator comments on strain or fatigue","Injury or near miss records, if the plant shares them"]},
  {id:"ci", title:"Build a routine for solving recurring problems", sig:["ci1","ci2","ci3","ci4","ci5"], cats:["ci"],
   tools:["Kaizen","Root Cause Analysis","Standard Work"],
   check:["How problems are discussed today (meetings, boards)","Recent improvements and who led them","Whether recurring problems are tracked and who follows up"]}
 ];
 
+const METHOD_IF = {
+ "5S":"Disorganized work areas or time lost searching",
+ "VSM / flow analysis":"Flow problems spanning several processes",
+ "Standard Work":"Variation in how the same task is done",
+ "SMED":"Long or frequent changeovers",
+ "Root Cause Analysis":"A recurring defect or failure with unclear cause",
+ "Kaizen":"A focused problem a team can address quickly",
+ "Visual Management":"Status or problems not visible at a glance",
+ "TPM":"Recurring downtime or minor equipment stops",
+ "Material Flow":"Excess handling, travel, or accumulation",
+ "Bottleneck analysis (TOC)":"One machine has a queue in front of it while others are starved or blocked",
+ "Yield and quality control (SPC)":"Size variation, wane, downgrades, or recovery below target",
+ "Jidoka":"Defects found late, or operators unable to stop the line",
+ "Production planning and inventory control":"An unclear or changing schedule, or inventory that swings between steps",
+ "Performance measurement (OEE)":"Little or no data on downtime, output, or losses",
+ "Methods and work measurement":"Awkward lifting, repetitive handling, or operators leaving their stations"
+};
 const EFFECT = [["","Not rated"],["stop","Stopped or starved the line"],["slow","Slowed the line"],["local","Local only, no effect on the line seen"]];
 const EFFECT_RANK = {stop:3, slow:2, local:1};
 const EFFECT_LEAD = {3:"High", 2:"Medium", 1:"Low", 0:"Not rated"};
@@ -1117,6 +1134,8 @@ function renderAnalysis(){
           </ul>
           ${missing.length?`<p class="hint" style="margin:4px 0 8px">Missing evidence: ${missing.join(", ")}.</p>`:""}
           ${r.dataMissing.length?`<p class="hint" style="margin:4px 0 8px">Data was ticked in ${r.dataMissing.map(esc).join(", ")} without naming the number or document, so it is not counted.</p>`:""}
+          <div class="sublabel">If the evidence shows (why these methods could fit)</div>
+          <ul>${r.o.tools.map(t=>`<li><b>${esc(t)}</b>: ${esc(METHOD_IF[t]||"")}</li>`).join("")}</ul>
           <div class="sublabel">Check this information before selecting as a project candidate</div>
           <ul>${r.o.check.map(c=>`<li>${esc(c)}</li>`).join("")}</ul>
           <label class="f">Your notes<textarea data-oppnote>${esc(state.oppNotes[r.o.id]||"")}</textarea></label>
@@ -1220,7 +1239,7 @@ function reportText(){
     L.push(`- Group: ${BUCKETS.find(b=>b[0]===r.bucket)[1]}`);
     L.push(`- Evidence source types: ${[r.seen&&"observation",r.people&&"people",r.data&&"data"].filter(Boolean).join(", ")||"none ticked"} (${r.n} of 3)`);
     L.push(`- Effect on the line: ${EFFECT_LEAD[r.eff]}`);
-    L.push(`- Methods that could fit if confirmed: ${r.o.tools.join(", ")}`);
+    L.push(`- Methods that could fit if confirmed: ${r.o.tools.map(t=>METHOD_IF[t]?`${t} (if the evidence shows: ${METHOD_IF[t].toLowerCase()})`:t).join("; ")}`);
     r.matched.forEach(m=>L.push(`- Seen: ${m.text} (${m.cat}${m.loc?", "+m.loc:""})`));
     r.dataNotes.forEach(d=>L.push(`- Data: ${d.note} (${d.cat})`));
     r.dh.forEach(d=>L.push(`- Process map: ${d.msg}${d.counts?"":" (not counted as Data)"}`));
