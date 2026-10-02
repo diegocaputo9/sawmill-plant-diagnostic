@@ -568,7 +568,7 @@ const catOpen = ob => ob.open!==undefined ? ob.open : (ob.status==="yes"||ob.sta
 const entryTitle = (i,en) => `Entry ${i+1}${(en.location||"").trim()?" - "+en.location.trim():""}`;
 function entryHTML(c,en,i,total){
   const open = en.open===true;
-  const head = `<div class="entry-head"><button type="button" class="cat-toggle entry-toggle" data-toggle-entry aria-expanded="${open}"><span class="chev" aria-hidden="true">&#9656;</span><span class="entry-title">${esc(entryTitle(i,en))}</span>${open?"":`<span class="cat-count">${en.signals.length+(en.otherOn?1:0)} item${en.signals.length+(en.otherOn?1:0)===1?"":"s"} checked</span>`}</button>${total>1?`<button type="button" class="rm" data-del-entry>Remove entry</button>`:""}</div>`;
+  const head = `<div class="entry-head"><button type="button" class="cat-toggle entry-toggle" data-toggle-entry aria-expanded="${open}"><span class="chev" aria-hidden="true">&#9656;</span><span class="entry-title">${esc(entryTitle(i,en))}</span>${open?"":`<span class="cat-count">${en.signals.length+(en.otherOn?1:0)} item${en.signals.length+(en.otherOn?1:0)===1?"":"s"} checked</span>`}</button><button type="button" class="rm" data-del-entry>Remove entry</button></div>`;
   if(!open) return `<div class="entry" data-e="${i}">${head}</div>`;
   return `<div class="entry" data-e="${i}">${head}
     <div class="sublabel">What did you see or hear?</div>
@@ -624,7 +624,7 @@ catsEl.addEventListener("click", e=>{
     persist(); rerenderCat(id); return;
   }
   if(e.target.closest("[data-add-entry]")){
-    if(ob.status!=="yes" && ob.status!=="unclear") ob.status = "yes";
+    if(ob.status!=="yes" && ob.status!=="unclear"){ ob.status = "yes"; ob.entries = []; }
     ob.entries.push(newEntry()); ob.open = true; persist(); rerenderCat(id);
     const all = document.querySelectorAll(`.cat[data-cat="${id}"] .entry`), last = all[all.length-1];
     if(last){ const t = last.querySelector('[data-o="location"]'); if(t) t.focus(); last.scrollIntoView({block:"nearest"}); }
@@ -635,8 +635,11 @@ catsEl.addEventListener("click", e=>{
   const del = e.target.closest("[data-del-entry]");
   if(del){
     const i = +del.closest(".entry").dataset.e, en = ob.entries[i];
-    if((en.signals.length || en.location || en.desc || en.otherText || en.photo) && !confirm("Remove this entry?")) return;
-    ob.entries.splice(i,1); persist(); rerenderCat(id); toast("Entry removed"); return;
+    const last = ob.entries.length===1;
+    if((en.signals.length || en.location || en.desc || en.otherText || en.photo) && !confirm(last ? "Remove this entry? The category will go back to unanswered." : "Remove this entry?")) return;
+    ob.entries.splice(i,1);
+    if(!ob.entries.length) ob.status = "";
+    persist(); rerenderCat(id); toast("Entry removed"); return;
   }
   const chip = e.target.closest(".chip"), en = chip && entryOf(ob, chip);
   if(chip && en){
