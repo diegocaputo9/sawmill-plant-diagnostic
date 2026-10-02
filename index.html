@@ -102,7 +102,10 @@ textarea{min-height:72px; resize:vertical; max-width:100%; display:block}
 .cat-count{font-size:.8rem; color:var(--muted); font-weight:500; white-space:nowrap}
 .entry{padding-bottom:6px}
 .entry + .entry{border-top:1px solid var(--rule); padding-top:18px; margin-top:12px}
-.entry-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:6px}
+.entry-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px}
+.entry-toggle{width:auto; flex:1; min-width:0}
+.entry-title{font-size:.95rem; font-weight:650}
+.entry-toggle:hover .entry-title{text-decoration:underline; text-underline-offset:3px}
 .lookfor{margin:4px 0 8px; padding-left:1.1rem; color:var(--muted); font-size:.93rem}
 .lookfor li{margin:3px 0}
 .seg{display:inline-flex}
@@ -460,7 +463,7 @@ function clean(d){
     const o = st.obs[k]; if(!o) return;
     if(!Array.isArray(o.entries)){
       const keep = ["signals","location","desc","effect","src","dataNote","photo","follow","otherOn","otherText"], en = newEntry();
-      keep.forEach(f=>{ if(o[f]!==undefined) en[f] = o[f]; }); keep.forEach(f=>delete o[f]);
+      keep.forEach(f=>{ if(o[f]!==undefined) en[f] = o[f]; }); keep.forEach(f=>delete o[f]); en.open = false;
       o.entries = (o.status==="yes"||o.status==="unclear") ? [en] : [];
     }
     if(!CAT[k]) return;
@@ -480,7 +483,7 @@ const PR = () => curMap().procs;
 
 const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num = v => (v===""||v==null||isNaN(+v)) ? null : +v;
-const newEntry = () => ({signals:[], location:"", desc:"", effect:"", src:{seen:false,people:false,data:false}, dataNote:"", photo:"", follow:false, otherOn:false, otherText:""});
+const newEntry = () => ({open:true, signals:[], location:"", desc:"", effect:"", src:{seen:false,people:false,data:false}, dataNote:"", photo:"", follow:false, otherOn:false, otherText:""});
 const obsOf = id => state.obs[id] || (state.obs[id] = {status:"", entries:[]});
 try{ const raw = localStorage.getItem(LS_KEY); if(raw){ state = clean(JSON.parse(raw)); } }catch(e){}
 
@@ -562,14 +565,17 @@ document.getElementById("visitFields").addEventListener("input", e=>{
 
 /* ---------- plant walk ---------- */
 const catOpen = ob => ob.open!==undefined ? ob.open : (ob.status==="yes"||ob.status==="unclear");
+const entryTitle = (i,en) => `Entry ${i+1}${(en.location||"").trim()?" - "+en.location.trim():""}`;
 function entryHTML(c,en,i,total){
-  return `<div class="entry" data-e="${i}">
-    ${total>1?`<div class="entry-head"><b>Entry ${i+1}${en.location?": "+esc(en.location):""}</b><button type="button" class="rm" data-del-entry>Remove entry</button></div>`:""}
+  const open = en.open===true;
+  const head = `<div class="entry-head"><button type="button" class="cat-toggle entry-toggle" data-toggle-entry aria-expanded="${open}"><span class="chev" aria-hidden="true">&#9656;</span><span class="entry-title">${esc(entryTitle(i,en))}</span>${open?"":`<span class="cat-count">${en.signals.length+(en.otherOn?1:0)} item${en.signals.length+(en.otherOn?1:0)===1?"":"s"} checked</span>`}</button>${total>1?`<button type="button" class="rm" data-del-entry>Remove entry</button>`:""}</div>`;
+  if(!open) return `<div class="entry" data-e="${i}">${head}</div>`;
+  return `<div class="entry" data-e="${i}">${head}
     <div class="sublabel">What did you see or hear?</div>
     <div class="checks">${c.sig.map(([sid,t])=>`<label class="chk"><input type="checkbox" data-sig="${sid}" ${en.signals.includes(sid)?"checked":""}><span>${esc(t)}</span></label>`).join("")}<label class="chk"><input type="checkbox" data-other ${en.otherOn?"checked":""}><span>Other</span></label></div>
     ${en.otherOn?`<label class="f" style="margin-bottom:14px">Explain what you saw or heard<input type="text" data-o="otherText" value="${esc(en.otherText)}"></label>`:""}
     <div class="grid">
-      <label class="f">Location<input type="text" data-o="location" value="${esc(en.location)}"></label>
+      <label class="f">Location<input type="text" data-o="location" value="${esc(en.location)}" placeholder="e.g. Warehouse"></label>
       <label class="f">Effect on the line<select data-o="effect">${EFFECT.map(([v,l])=>`<option value="${v}" ${en.effect===v?"selected":""}>${l}</option>`).join("")}</select></label>
       <label class="f">Photo reference<input type="text" data-o="photo" value="${esc(en.photo)}" placeholder="e.g. 12, 13"></label>
       <label class="f" style="grid-column:1/-1">Description<textarea data-o="desc">${esc(en.desc)}</textarea></label>
@@ -624,6 +630,8 @@ catsEl.addEventListener("click", e=>{
     if(last){ const t = last.querySelector('[data-o="location"]'); if(t) t.focus(); last.scrollIntoView({block:"nearest"}); }
     return;
   }
+  const tgl = e.target.closest("[data-toggle-entry]");
+  if(tgl){ const en = ob.entries[+tgl.closest(".entry").dataset.e]; en.open = en.open!==true; persist(); rerenderCat(id); return; }
   const del = e.target.closest("[data-del-entry]");
   if(del){
     const i = +del.closest(".entry").dataset.e, en = ob.entries[i];
@@ -663,7 +671,7 @@ catsEl.addEventListener("input", e=>{
   const k = e.target.dataset.o; if(!k) return;
   const en = entryOf(obsOf(catEl.dataset.cat), e.target); if(!en) return;
   en[k] = e.target.value; persist();
-  if(k==="location"){ const h = e.target.closest(".entry").querySelector(".entry-head b"); if(h){ const i = +e.target.closest(".entry").dataset.e; h.textContent = `Entry ${i+1}${e.target.value?": "+e.target.value:""}`; } }
+  if(k==="location"){ const el = e.target.closest(".entry"), h = el.querySelector(".entry-title"); if(h) h.textContent = entryTitle(+el.dataset.e, en); }
 });
 
 /* ---------- process map ---------- */
@@ -1049,7 +1057,7 @@ function reportText(){
     L.push(`### ${c.name}: ${ob.status}`);
     const ens = (ob.status==="yes"||ob.status==="unclear") ? ob.entries : [];
     ens.forEach((o,i)=>{
-      if(ens.length>1) L.push(`**Entry ${i+1}${o.location?": "+o.location:""}**`);
+      if(ens.length>1) L.push(`**${entryTitle(i,o)}**`);
       o.signals.forEach(s=>L.push(`- ${SIG[s].text}`));
       const eff = (EFFECT.find(f=>f[0]===o.effect)||["",""])[1];
       const meta = [o.location&&ens.length===1&&`Location: ${o.location}`, o.effect&&`Effect on the line: ${eff}`, o.photo&&`Photos: ${o.photo}`, o.follow&&"Follow up needed"].filter(Boolean);
